@@ -7,6 +7,15 @@ type TX {
   from: String!
 }
 
+type Role {
+  id: ID!
+  chainId: Int!
+  roleHash: String!
+  beamPool: BeamPool
+  beamR: BeamR!
+  admins: [String!]!
+}
+
 type BeamR {
   id: ID!
   chainId: Int!
@@ -27,6 +36,7 @@ type BeamPool {
   beamCount: Int!
   totalUnits: BigInt!
   flowRate: BigInt!
+  poolAdminRole: Role!
 }
 
 type Beam {
@@ -44,7 +54,7 @@ type User {
   id: ID!
   chainId: Int!
   address: String!
-  fid: Int!
+  fid: Int
   beamPools: [BeamPool!]! @derivedFrom(field: "creator")
   incoming: [Beam!]! @derivedFrom(field: "to")
   outgoing: [Beam!]! @derivedFrom(field: "from")

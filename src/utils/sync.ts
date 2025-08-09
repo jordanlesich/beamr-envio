@@ -20,6 +20,3 @@ export const createTx = (
 
   return tx;
 };
-
-export const saveTx = (event: eventLog<unknown>, context: handlerContext) =>
-  createTx(event, context, true);
