@@ -10,34 +10,24 @@ import {
   BeamR_RoleGranted,
   BeamR_RoleRevoked,
 } from 'generated';
+import { createTx, saveTx } from './utils/sync';
 
 BeamR.Initialized.handler(async ({ event, context }) => {
-  // event.transaction.hash;
-  event.transaction.from;
-  event.block.number;
-  event.block.timestamp;
-  event.block.hash;
-
-  context.TX.set({
-    id: event.transaction.hash,
-    from: event.transaction.from || '',
-    block: event.block.number,
-    timestamp: event.block.timestamp,
-    hash: event.block.hash,
-    chainId: event.chainId,
-  });
+  const tx = createTx(event, context, false);
 
   const entity: BeamR_Initialized = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     adminRole: event.params.adminRole,
     rootAdminRole: event.params.rootAdminRole,
-    tx_id: event.transaction.hash,
+    tx_id: tx.id,
   };
 
   context.BeamR_Initialized.set(entity);
+  saveTx(event, context);
 });
 
 BeamR.PoolCreated.handler(async ({ event, context }) => {
+  const tx = createTx(event, context, false);
   const entity: BeamR_PoolCreated = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     pool: event.params.pool,
@@ -48,51 +38,66 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     poolAdminRole: event.params.poolAdminRole,
     metadata_0: event.params.metadata[0],
     metadata_1: event.params.metadata[1],
+    tx_id: tx.id,
   };
 
   context.BeamR_PoolCreated.set(entity);
+
+  saveTx(event, context);
 });
 
 BeamR.PoolMetadataUpdated.handler(async ({ event, context }) => {
+  const tx = createTx(event, context, false);
   const entity: BeamR_PoolMetadataUpdated = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     pool: event.params.pool,
     metadata_0: event.params.metadata[0],
     metadata_1: event.params.metadata[1],
+    tx_id: tx.id,
   };
 
   context.BeamR_PoolMetadataUpdated.set(entity);
+  saveTx(event, context);
 });
 
 BeamR.RoleAdminChanged.handler(async ({ event, context }) => {
+  const tx = createTx(event, context, false);
   const entity: BeamR_RoleAdminChanged = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     role: event.params.role,
     previousAdminRole: event.params.previousAdminRole,
     newAdminRole: event.params.newAdminRole,
+    tx_id: tx.id,
   };
 
   context.BeamR_RoleAdminChanged.set(entity);
+  saveTx(event, context);
 });
 
 BeamR.RoleGranted.handler(async ({ event, context }) => {
+  const tx = createTx(event, context, false);
   const entity: BeamR_RoleGranted = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     role: event.params.role,
     account: event.params.account,
     sender: event.params.sender,
+    tx_id: tx.id,
   };
 
   context.BeamR_RoleGranted.set(entity);
+  saveTx(event, context);
 });
 
 BeamR.RoleRevoked.handler(async ({ event, context }) => {
+  const tx = createTx(event, context, false);
   const entity: BeamR_RoleRevoked = {
     id: `${event.chainId}_${event.block.number}_${event.logIndex}`,
     role: event.params.role,
     account: event.params.account,
     sender: event.params.sender,
+    tx_id: tx.id,
   };
 
   context.BeamR_RoleRevoked.set(entity);
+  saveTx(event, context);
 });

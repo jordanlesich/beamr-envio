@@ -28,7 +28,7 @@ type BeamR_PoolCreated {
   poolAdminRole: String!
   metadata_0: BigInt!
   metadata_1: String!
-  # tx: TX!
+  tx: TX!
 }
 
 type BeamR_PoolMetadataUpdated {
@@ -36,7 +36,7 @@ type BeamR_PoolMetadataUpdated {
   pool: String!
   metadata_0: BigInt!
   metadata_1: String!
-  # tx: TX!
+  tx: TX!
 }
 
 type BeamR_RoleAdminChanged {
@@ -44,7 +44,7 @@ type BeamR_RoleAdminChanged {
   role: String!
   previousAdminRole: String!
   newAdminRole: String!
-  # tx: TX!
+  tx: TX!
 }
 
 type BeamR_RoleGranted {
@@ -52,7 +52,7 @@ type BeamR_RoleGranted {
   role: String!
   account: String!
   sender: String!
-  # tx: TX!
+  tx: TX!
 }
 
 type BeamR_RoleRevoked {
@@ -60,5 +60,5 @@ type BeamR_RoleRevoked {
   role: String!
   account: String!
   sender: String!
-  # tx: TX!
+  tx: TX!
 }

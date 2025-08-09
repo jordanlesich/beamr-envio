@@ -1,6 +1,6 @@
 import { eventLog, handlerContext, TX } from 'generated';
 
-export const createTx = async (
+export const createTx = (
   event: eventLog<unknown>,
   context: handlerContext,
   save: boolean = true
@@ -20,3 +20,6 @@ export const createTx = async (
 
   return tx;
 };
+
+export const saveTx = (event: eventLog<unknown>, context: handlerContext) =>
+  createTx(event, context, true);
