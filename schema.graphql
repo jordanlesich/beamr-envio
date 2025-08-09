@@ -7,8 +7,63 @@ type TX {
   from: String!
 }
 
+type BeamR {
+  id: ID!
+  chainId: Int!
+  beamPools: [BeamPool!]! @derivedFrom(field: "beamR")
+  admins: [String!]!
+  rootAdmins: [String!]!
+  adminRole: String!
+  rootAdminRole: String!
+}
+
+type BeamPool {
+  id: ID!
+  chainId: Int!
+  beamR: BeamR!
+  creator: User!
+  token: String!
+  beams: [Beam!]! @derivedFrom(field: "beamPool")
+  beamCount: Int!
+  totalUnits: BigInt!
+  flowRate: BigInt!
+}
+
+type Beam {
+  id: ID!
+  chainId: Int!
+  from: User!
+  to: User!
+  beamPool: BeamPool!
+  units: BigInt!
+  receiverConnected: Boolean!
+  flowRate: BigInt!
+}
+
+type User {
+  id: ID!
+  chainId: Int!
+  address: String!
+  fid: Int!
+  beamPools: [BeamPool!]! @derivedFrom(field: "creator")
+  incoming: [Beam!]! @derivedFrom(field: "to")
+  outgoing: [Beam!]! @derivedFrom(field: "from")
+}
+
+type TokenMetric {
+  id: ID!
+  chainId: Int!
+  address: String!
+  amountBeamed: BigInt!
+  vanityMetrics: VanityMetrics!
+}
+
 type VanityMetrics {
   id: ID!
+  users: Int!
+  beamPools: Int!
+  beams: Int!
+  TokenMetrics: [TokenMetric!]! @derivedFrom(field: "vanityMetrics")
 }
 
 type BeamR_Initialized {
