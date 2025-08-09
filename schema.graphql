@@ -1,0 +1,64 @@
+type TX {
+  id: ID!
+  block: Int!
+  timestamp: Int!
+  hash: String!
+  chainId: Int!
+  from: String!
+}
+
+type VanityMetrics {
+  id: ID!
+}
+
+type BeamR_Initialized {
+  id: ID!
+  adminRole: String!
+  rootAdminRole: String!
+  tx: TX!
+}
+
+type BeamR_PoolCreated {
+  id: ID!
+  pool: String!
+  token: String!
+  config_0: Boolean!
+  config_1: Boolean!
+  creator: String!
+  poolAdminRole: String!
+  metadata_0: BigInt!
+  metadata_1: String!
+  # tx: TX!
+}
+
+type BeamR_PoolMetadataUpdated {
+  id: ID!
+  pool: String!
+  metadata_0: BigInt!
+  metadata_1: String!
+  # tx: TX!
+}
+
+type BeamR_RoleAdminChanged {
+  id: ID!
+  role: String!
+  previousAdminRole: String!
+  newAdminRole: String!
+  # tx: TX!
+}
+
+type BeamR_RoleGranted {
+  id: ID!
+  role: String!
+  account: String!
+  sender: String!
+  # tx: TX!
+}
+
+type BeamR_RoleRevoked {
+  id: ID!
+  role: String!
+  account: String!
+  sender: String!
+  # tx: TX!
+}
