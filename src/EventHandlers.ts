@@ -6,7 +6,6 @@ import {
   BeamR_Initialized,
   BeamR_PoolCreated,
   BeamR_PoolMetadataUpdated,
-  BeamR_RoleAdminChanged,
   BeamR_RoleGranted,
   BeamR_RoleRevoked,
 } from 'generated';
@@ -65,6 +64,8 @@ BeamR.Initialized.handler(async ({ event, context }) => {
   context.BeamR.set(beamR);
   context.VanityMetrics.set(VanityMetrics);
   context.BeamR_Initialized.set(entity);
+  context.Role.set(adminRole);
+  context.Role.set(rootAdminRole);
   context.TX.set(tx);
 });
 
@@ -141,6 +142,19 @@ BeamR.PoolMetadataUpdated.handler(async ({ event, context }) => {
 
 BeamR.RoleGranted.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
+  const role = await context.Role.get(`${event.chainId}_${event.params.role}`);
+
+  if (!role) {
+    context.log.warn(
+      `Role not found for role hash: ${event.params.role} on chainId: ${event.chainId}`
+    );
+    return;
+  }
+
+  context.Role.set({
+    ...role,
+    admins: [...role.admins, event.params.account],
+  });
 
   const entity: BeamR_RoleGranted = {
     id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
@@ -156,6 +170,20 @@ BeamR.RoleGranted.handler(async ({ event, context }) => {
 
 BeamR.RoleRevoked.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
+  const role = await context.Role.get(`${event.chainId}_${event.params.role}`);
+
+  if (!role) {
+    context.log.warn(
+      `Role not found for role hash: ${event.params.role} on chainId: ${event.chainId}`
+    );
+    return;
+  }
+
+  context.Role.set({
+    ...role,
+    admins: role.admins.filter((admin) => admin !== event.params.account),
+  });
+
   const entity: BeamR_RoleRevoked = {
     id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
     role: event.params.role,
