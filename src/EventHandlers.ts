@@ -49,10 +49,8 @@ BeamR.Initialized.handler(async ({ event, context }) => {
   const beamR: beamR = {
     id: `${event.chainId}_${event.srcAddress}`,
     chainId: event.chainId,
-    admins: [],
-    rootAdmins: [],
-    adminRole: event.params.adminRole,
-    rootAdminRole: event.params.rootAdminRole,
+    adminRole_id: adminRole.id,
+    rootAdminRole_id: rootAdminRole.id,
   };
   const entity: BeamR_Initialized = {
     id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
@@ -195,3 +193,5 @@ BeamR.RoleRevoked.handler(async ({ event, context }) => {
   context.BeamR_RoleRevoked.set(entity);
   context.TX.set(tx);
 });
+//
+//

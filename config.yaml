@@ -6,7 +6,7 @@ networks:
   contracts:
   - name: BeamR
     address:
-    - 0xbaD48b05D748eBDde866b24D22a8CB48141348aE
+    - 0xf8405d14CF994017015fd94Db54C9D0899FD465B
     handler: src/EventHandlers.ts
     events:
     - event: Initialized(bytes32 adminRole, bytes32 rootAdminRole)

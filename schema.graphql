@@ -20,10 +20,8 @@ type BeamR {
   id: ID!
   chainId: Int!
   beamPools: [BeamPool!]! @derivedFrom(field: "beamR")
-  admins: [String!]!
-  rootAdmins: [String!]!
-  adminRole: String!
-  rootAdminRole: String!
+  adminRole: Role!
+  rootAdminRole: Role!
 }
 
 type BeamPool {
