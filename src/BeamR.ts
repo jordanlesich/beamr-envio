@@ -69,6 +69,10 @@ BeamR.Initialized.handler(async ({ event, context }) => {
   context.TX.set(tx);
 });
 
+BeamR.PoolCreated.contractRegister(async ({ event, context }) => {
+  context.addSuperfluidPool(event.params.pool);
+});
+
 BeamR.PoolCreated.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
   const vanityMetrics = await context.VanityMetrics.get(VANITY_METRICS);
@@ -104,6 +108,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     flowRate: 0n,
     poolAdminRole_id: event.params.poolAdminRole,
     lastDistroUpdate_id: undefined,
+    flowRateLastUpdated: 0,
   };
 
   const entity: BeamR_PoolCreated = {
