@@ -1,4 +1,4 @@
-import { Beam, SuperfluidPool, User } from 'generated';
+import { Beam, MemberUnitsUpdated, SuperfluidPool, User } from 'generated';
 
 SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
   const beamPool = await context.BeamPool.get(event.srcAddress);
@@ -42,18 +42,18 @@ SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
   }
 
   let beam = await context.Beam.get(
-    `${beamPool.creator_id}_${event.srcAddress}_${event.params.member}`
+    `${event.srcAddress}_${event.params.member}`
   );
 
   if (!beam) {
     beam = {
-      id: `${beamPool.creator_id}_${event.srcAddress}_${event.params.member}`,
+      id: `${event.srcAddress}_${event.params.member}`,
       chainId: event.chainId,
       from_id: `${event.chainId}_${event.params.member}`,
       to_id: beamPool.creator_id,
       beamPool_id: event.srcAddress,
       units: event.params.newUnits,
-      receiverConnected: false,
+      isReceiverConnected: false,
       beamR_id: beamR.id,
     };
   } else {
@@ -63,11 +63,22 @@ SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
     };
   }
 
+  const memberUnitsUpdated: MemberUnitsUpdated = {
+    id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
+    beamPool_id: event.srcAddress,
+    beam_id: beam.id,
+    member: event.params.member,
+    oldUnits: event.params.oldUnits,
+    newUnits: event.params.newUnits,
+  };
+
+  context.MemberUnitsUpdated.set(memberUnitsUpdated);
   context.Beam.set(beam);
   context.User.set(receiver);
   context.Beam.set(beam);
   context.BeamPool.set({
     ...beamPool,
+    lastUpdated: event.block.timestamp,
     totalUnits: isIncrease
       ? beamPool.totalUnits + netChange
       : beamPool.totalUnits - netChange,
