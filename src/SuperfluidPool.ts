@@ -1,4 +1,5 @@
 import { Beam, MemberUnitsUpdated, SuperfluidPool, User } from 'generated';
+import { createTx } from './utils/sync';
 
 SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
   const beamPool = await context.BeamPool.get(event.srcAddress);
@@ -83,4 +84,6 @@ SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
       ? beamPool.totalUnits + netChange
       : beamPool.totalUnits - netChange,
   });
+
+  createTx(event, context);
 });
