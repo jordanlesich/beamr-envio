@@ -18,11 +18,13 @@ import {
   VanityMetrics,
 } from 'generated/src/Types.gen';
 
+const VANITY_METRICS = 'VANITY_METRICS';
+
 BeamR.Initialized.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
   const VanityMetrics: VanityMetrics = {
-    id: 'VANITY_METRICS',
+    id: VANITY_METRICS,
     users: 0,
     beamPools: 0,
     beams: 0,
@@ -69,6 +71,7 @@ BeamR.Initialized.handler(async ({ event, context }) => {
 
 BeamR.PoolCreated.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
+  const vanityMetrics = await context.VanityMetrics.get(VANITY_METRICS);
 
   /// Parse and validate Metadata
   /// Derive pool metadata
@@ -115,10 +118,22 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     tx_id: tx.id,
   };
 
+  if (!vanityMetrics) {
+    context.log.error(`VanityMetrics not found on chainId: ${event.chainId}`);
+    return;
+  }
+
+  const newMetrics: VanityMetrics = {
+    ...vanityMetrics,
+    users: vanityMetrics.users + 1,
+    beamPools: vanityMetrics.beamPools + 1,
+  };
+
   context.Role.set(poolAdminRole);
   context.BeamR_PoolCreated.set(entity);
   context.BeamPool.set(BeamPool);
   context.User.set(creator);
+  context.VanityMetrics.set(newMetrics);
 
   context.TX.set(tx);
 });
@@ -193,5 +208,3 @@ BeamR.RoleRevoked.handler(async ({ event, context }) => {
   context.BeamR_RoleRevoked.set(entity);
   context.TX.set(tx);
 });
-//
-//
