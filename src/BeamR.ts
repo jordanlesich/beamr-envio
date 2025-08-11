@@ -103,6 +103,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     totalUnits: 0n,
     flowRate: 0n,
     poolAdminRole_id: event.params.poolAdminRole,
+    lastDistroUpdate_id: undefined,
   };
 
   const entity: BeamR_PoolCreated = {

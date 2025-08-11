@@ -15,6 +15,13 @@ networks:
     - event: RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
     - event: RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)
     - event: RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
+  - name: GDA
+    address: 
+    - 0xfE6c87BE05feDB2059d2EC41bA0A09826C9FD7aa
+    handler: src/GDA.ts
+    events: 
+    - event: FlowDistributionUpdated(address indexed token,address indexed pool,address indexed distributor,address operator,int96 oldFlowRate,int96 newDistributorToPoolFlowRate,int96 newTotalDistributionFlowRate,address adjustmentFlowRecipient,int96 adjustmentFlowRate,bytes userData)
+    - event: PoolConnectionUpdated(address indexed token, address indexed pool, address indexed account, bool isConnected, bytes userData)
   - name: SuperfluidPool
     handler: src/SuperfluidPool.ts
     events:

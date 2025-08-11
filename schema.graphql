@@ -34,7 +34,10 @@ type BeamPool {
   beamCount: Int!
   totalUnits: BigInt!
   flowRate: BigInt!
+  flowRateLastUpdated: Int!
   poolAdminRole: Role!
+  lastDistroUpdate: DistributionUpdated
+  distributionUpdates: [DistributionUpdated!]! @derivedFrom(field: "beamPool")
 }
 
 type Beam {
@@ -73,6 +76,19 @@ type VanityMetrics {
   beams: Int!
   TokenMetrics: [TokenMetric!]! @derivedFrom(field: "vanityMetrics")
 }
+
+# Raw Events for GDA Contract (filtered by BeamR specific pools only)
+
+type DistributionUpdated {
+  id: ID!
+  beamPool: BeamPool!
+  distributor: String!
+  oldFlowRate: BigInt!
+  newFlowRateFromDistributor: BigInt!
+  newTotalFlowRate: BigInt!
+}
+
+# Raw Events for BeamR Contract
 
 type BeamR_Initialized {
   id: ID!
