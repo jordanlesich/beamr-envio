@@ -9,12 +9,9 @@ export enum PoolType {
   Earn,
 }
 
-z.object({
+export const poolMetadataSchema = z.object({
   creatorFID: z.number().int(),
   poolType: z.enum(PoolType),
-  simulatedPoolAddress: z.string().refine((val) => {
-    return isAddress(val) ? true : 'Invalid address format';
-  }),
   name: z.string().min(1, 'Pool name must be at least 1 character long'),
   description: z
     .string()

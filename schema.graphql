@@ -37,9 +37,20 @@ type BeamPool {
   flowRate: BigInt!
   lastUpdated: Int!
   poolAdminRole: Role!
+  metadata: PoolMetadata!
   lastDistroUpdate: DistributionUpdated
   distributionUpdates: [DistributionUpdated!]! @derivedFrom(field: "beamPool")
   memberUnitsUpdated: [MemberUnitsUpdated!]! @derivedFrom(field: "beamPool")
+}
+
+type PoolMetadata {
+  id: ID!
+  creatorFID: Int!
+  poolType: Int!
+  name: String!
+  description: String
+  castHash: String
+  instructions: String
 }
 
 type Beam {

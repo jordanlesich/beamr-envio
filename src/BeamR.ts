@@ -13,10 +13,12 @@ import { createTx } from './utils/sync';
 import {
   BeamPool,
   beamR,
+  PoolMetadata,
   Role,
   User,
   VanityMetrics,
 } from 'generated/src/Types.gen';
+import { ONCHAIN_EVENT, poolMetadataSchema } from './validation/poolMetadata';
 
 const VANITY_METRICS = 'VANITY_METRICS';
 
@@ -77,15 +79,46 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
   const vanityMetrics = await context.VanityMetrics.get(VANITY_METRICS);
 
-  /// Parse and validate Metadata
-  /// Derive pool metadata
-  /// Derive FID
+  if (event.params.metadata[0] !== ONCHAIN_EVENT) {
+    context.log.error(
+      `Invalid metadata for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+  const parsedJSON = safeJSONParse(event.params.metadata[1]);
+
+  if (!parsedJSON) {
+    context.log.error(
+      `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+  const validated = poolMetadataSchema.safeParse(
+    JSON.parse(event.params.metadata[1])
+  );
+
+  if (!validated.success) {
+    context.log.error(
+      `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`
+    );
+    return;
+  }
+
+  const metadata: PoolMetadata = {
+    id: event.params.pool,
+    creatorFID: validated.data.creatorFID,
+    poolType: validated.data.poolType,
+    name: validated.data.name,
+    description: validated.data.description || undefined,
+    castHash: validated.data.castHash || undefined,
+    instructions: validated.data.instructions || undefined,
+  };
 
   const creator: User = {
     id: `${event.chainId}_${event.params.creator}`,
     chainId: event.chainId,
     address: event.params.creator,
-    fid: undefined,
+    fid: metadata.creatorFID,
   };
 
   const poolAdminRole: Role = {
@@ -109,6 +142,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     poolAdminRole_id: event.params.poolAdminRole,
     lastDistroUpdate_id: undefined,
     lastUpdated: event.block.timestamp,
+    metadata_id: event.params.pool,
   };
 
   const entity: BeamR_PoolCreated = {
@@ -140,6 +174,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   context.BeamPool.set(BeamPool);
   context.User.set(creator);
   context.VanityMetrics.set(newMetrics);
+  context.PoolMetadata.set(metadata);
 
   context.TX.set(tx);
 });
