@@ -1,8 +1,10 @@
 import { Beam, MemberUnitsUpdated, SuperfluidPool } from 'generated';
-import { createTx } from './utils/sync';
+import { _key, createTx } from './utils/sync';
 
 SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
-  const beamPool = await context.BeamPool.get(event.srcAddress);
+  const beamPool = await context.BeamPool.get(
+    _key.beamPool({ poolAddress: event.srcAddress })
+  );
 
   if (!beamPool) {
     // filter non BeamR pools
@@ -17,12 +19,18 @@ SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
   }
 
   let receiver = await context.User.get(
-    `${event.chainId}_${event.params.member}`
+    _key.user({
+      chainId: event.chainId,
+      address: event.params.member,
+    })
   );
 
   if (!receiver) {
     receiver = {
-      id: `${event.chainId}_${event.params.member}`,
+      id: _key.user({
+        chainId: event.chainId,
+        address: event.params.member,
+      }),
       chainId: event.chainId,
       address: event.params.member,
       fid: undefined, // users will not have fids until they create a pool
@@ -43,15 +51,24 @@ SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
   }
 
   let beam = await context.Beam.get(
-    `${event.srcAddress}_${event.params.member}`
+    _key.beam({
+      poolAddress: event.srcAddress,
+      to: event.params.member,
+    })
   );
 
   if (!beam) {
     beam = {
-      id: `${event.srcAddress}_${event.params.member}`,
+      id: _key.beam({
+        poolAddress: event.srcAddress,
+        to: event.params.member,
+      }),
       chainId: event.chainId,
-      from_id: `${event.chainId}_${event.params.member}`,
-      to_id: beamPool.creator_id,
+      from_id: beamPool.creator_id,
+      to_id: _key.user({
+        chainId: event.chainId,
+        address: event.params.member,
+      }),
       beamPool_id: event.srcAddress,
       units: event.params.newUnits,
       isReceiverConnected: false,
@@ -65,7 +82,7 @@ SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
   }
 
   const memberUnitsUpdated: MemberUnitsUpdated = {
-    id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
+    id: _key.event(event),
     beamPool_id: event.srcAddress,
     beam_id: beam.id,
     member: event.params.member,

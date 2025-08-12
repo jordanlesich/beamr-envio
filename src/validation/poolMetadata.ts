@@ -1,4 +1,3 @@
-import { isAddress } from 'viem';
 import z from 'zod';
 
 export const ONCHAIN_EVENT = 6969420n;

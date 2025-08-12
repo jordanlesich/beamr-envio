@@ -9,7 +9,7 @@ import {
   BeamR_RoleGranted,
   BeamR_RoleRevoked,
 } from 'generated';
-import { createTx } from './utils/sync';
+import { _key, createTx } from './utils/sync';
 import {
   BeamPool,
   beamR,
@@ -19,6 +19,7 @@ import {
   VanityMetrics,
 } from 'generated/src/Types.gen';
 import { ONCHAIN_EVENT, poolMetadataSchema } from './validation/poolMetadata';
+import { id } from 'zod/v4/locales/index.cjs';
 
 const VANITY_METRICS = 'VANITY_METRICS';
 
@@ -33,7 +34,7 @@ BeamR.Initialized.handler(async ({ event, context }) => {
   };
 
   const adminRole: Role = {
-    id: `${event.chainId}_${event.params.adminRole}`,
+    id: _key.role({ chainId: event.chainId, roleHash: event.params.adminRole }),
     chainId: event.chainId,
     roleHash: event.params.adminRole,
     beamPool_id: undefined,
@@ -42,7 +43,10 @@ BeamR.Initialized.handler(async ({ event, context }) => {
   };
 
   const rootAdminRole: Role = {
-    id: `${event.chainId}_${event.params.rootAdminRole}`,
+    id: _key.role({
+      chainId: event.chainId,
+      roleHash: event.params.rootAdminRole,
+    }),
     chainId: event.chainId,
     roleHash: event.params.rootAdminRole,
     beamPool_id: undefined,
@@ -51,13 +55,16 @@ BeamR.Initialized.handler(async ({ event, context }) => {
   };
 
   const beamR: beamR = {
-    id: `${event.chainId}_${event.srcAddress}`,
+    id: _key.beamR({
+      chainId: event.chainId,
+      address: event.srcAddress,
+    }),
     chainId: event.chainId,
     adminRole_id: adminRole.id,
     rootAdminRole_id: rootAdminRole.id,
   };
   const entity: BeamR_Initialized = {
-    id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
+    id: _key.event(event),
     adminRole: event.params.adminRole,
     rootAdminRole: event.params.rootAdminRole,
     tx_id: tx.id,
@@ -105,7 +112,9 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   }
 
   const metadata: PoolMetadata = {
-    id: event.params.pool,
+    id: _key.poolMetadata({
+      poolAddress: event.params.pool,
+    }),
     creatorFID: validated.data.creatorFID,
     poolType: validated.data.poolType,
     name: validated.data.name,
@@ -115,14 +124,20 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   };
 
   const creator: User = {
-    id: `${event.chainId}_${event.params.creator}`,
+    id: _key.user({
+      chainId: event.chainId,
+      address: event.params.creator,
+    }),
     chainId: event.chainId,
     address: event.params.creator,
     fid: metadata.creatorFID,
   };
 
   const poolAdminRole: Role = {
-    id: `${event.chainId}_${event.params.poolAdminRole}`,
+    id: _key.role({
+      chainId: event.chainId,
+      roleHash: event.params.poolAdminRole,
+    }),
     chainId: event.chainId,
     roleHash: event.params.poolAdminRole,
     beamPool_id: event.params.pool,
@@ -131,7 +146,9 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   };
 
   const BeamPool: BeamPool = {
-    id: event.params.pool,
+    id: _key.beamPool({
+      poolAddress: event.params.pool,
+    }),
     chainId: event.chainId,
     beamR_id: `${event.chainId}_${event.srcAddress}`,
     creator_id: event.params.creator,
@@ -146,7 +163,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   };
 
   const entity: BeamR_PoolCreated = {
-    id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
+    id: _key.event(event),
     pool: event.params.pool,
     token: event.params.token,
     config_0: event.params.config[0],
@@ -182,21 +199,58 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
 BeamR.PoolMetadataUpdated.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
-  const entity: BeamR_PoolMetadataUpdated = {
-    id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
-    pool: event.params.pool,
-    metadata_0: event.params.metadata[0],
-    metadata_1: event.params.metadata[1],
-    tx_id: tx.id,
+  if (event.params.metadata[0] !== ONCHAIN_EVENT) {
+    context.log.error(
+      `Invalid metadata for pool metadata update event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+
+  const parsedJSON = safeJSONParse(event.params.metadata[1]);
+
+  if (!parsedJSON) {
+    context.log.error(
+      `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+
+  const validated = poolMetadataSchema.safeParse(
+    JSON.parse(event.params.metadata[1])
+  );
+
+  if (!validated.success) {
+    context.log.error(
+      `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`
+    );
+    return;
+  }
+
+  const metadata: PoolMetadata = {
+    id: _key.poolMetadata({
+      poolAddress: event.params.pool,
+    }),
+    creatorFID: validated.data.creatorFID,
+    poolType: validated.data.poolType,
+    name: validated.data.name,
+    description: validated.data.description || undefined,
+    castHash: validated.data.castHash || undefined,
+    instructions: validated.data.instructions || undefined,
   };
 
-  context.BeamR_PoolMetadataUpdated.set(entity);
+  context.PoolMetadata.set(metadata);
+
   context.TX.set(tx);
 });
 
 BeamR.RoleGranted.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
-  const role = await context.Role.get(`${event.chainId}_${event.params.role}`);
+  const role = await context.Role.get(
+    _key.role({
+      chainId: event.chainId,
+      roleHash: event.params.role,
+    })
+  );
 
   if (!role) {
     context.log.warn(
@@ -211,7 +265,7 @@ BeamR.RoleGranted.handler(async ({ event, context }) => {
   });
 
   const entity: BeamR_RoleGranted = {
-    id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
+    id: _key.event(event),
     role: event.params.role,
     account: event.params.account,
     sender: event.params.sender,
@@ -224,7 +278,12 @@ BeamR.RoleGranted.handler(async ({ event, context }) => {
 
 BeamR.RoleRevoked.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
-  const role = await context.Role.get(`${event.chainId}_${event.params.role}`);
+  const role = await context.Role.get(
+    _key.role({
+      chainId: event.chainId,
+      roleHash: event.params.role,
+    })
+  );
 
   if (!role) {
     context.log.warn(
@@ -239,7 +298,7 @@ BeamR.RoleRevoked.handler(async ({ event, context }) => {
   });
 
   const entity: BeamR_RoleRevoked = {
-    id: `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
+    id: _key.event(event),
     role: event.params.role,
     account: event.params.account,
     sender: event.params.sender,
