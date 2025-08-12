@@ -20,3 +20,18 @@ export const createTx = (
 
   return tx;
 };
+
+export const _key = {
+  event: (event: eventLog<unknown>) =>
+    `${event.chainId}_${event.transaction.hash}_${event.logIndex}`,
+  beam: ({ poolAddress, to }: { poolAddress: string; to: string }) =>
+    `${poolAddress}_${to}`,
+  beamPool: ({ poolAddress }: { poolAddress: string }) => poolAddress,
+  poolMetadata: ({ poolAddress }: { poolAddress: string }) => poolAddress,
+  user: ({ chainId, address }: { chainId: number; address: string }) =>
+    `${chainId}_${address}`,
+  beamR: ({ chainId, address }: { chainId: number; address: string }) =>
+    `${chainId}_${address}`,
+  role: ({ chainId, roleHash }: { chainId: number; roleHash: string }) =>
+    `${chainId}_${roleHash}`,
+};

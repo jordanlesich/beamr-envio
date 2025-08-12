@@ -10,7 +10,10 @@ importers:
     dependencies:
       envio:
         specifier: 2.26.0
-        version: 2.26.0(typescript@5.2.2)
+        version: 2.26.0(typescript@5.2.2)(zod@4.0.17)
+      zod:
+        specifier: ^4.0.17
+        version: 4.0.17
     devDependencies:
       '@types/chai':
         specifier: ^4.3.11
@@ -44,37 +47,37 @@ packages:
     resolution: {integrity: sha512-nA9XHtlAkYfJxY7bce8DcN7eKxWWCWkU+1GR9d+U6MbNpfwQp8TI7vqOsBsMcHoT4mBu2kypKoSKnghEzOOq5Q==}
 
   '@envio-dev/hypersync-client-darwin-arm64@0.6.5':
-    resolution: {integrity: sha512-BjFmDFd+7QKuEkjlvwQjKy9b+ZWidkZHyKPjKSDg6u3KJe+fr+uY3rsW9TXNscUxJvl8YxJ2mZl0svOH7ukTyQ==}
+    resolution: {integrity: sha512-BjFmDFd+7QKuEkjlvwQjKy9b+ZWidkZHyKPjKSDg6u3KJe+fr+uY3rsW9TXNscUxJvl8YxJ2mZl0svOH7ukTyQ==, tarball: https://registry.npmjs.org/@envio-dev/hypersync-client-darwin-arm64/-/hypersync-client-darwin-arm64-0.6.5.tgz}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
 
   '@envio-dev/hypersync-client-darwin-x64@0.6.5':
-    resolution: {integrity: sha512-XT1l6bfsXgZqxh8BZbPoP/3Zk0Xvwzr/ZKVmzXR5ZhPxDgEVUJMg4Rd1oy8trd1K+uevqOr2DbuIGvM7k2hb8A==}
+    resolution: {integrity: sha512-XT1l6bfsXgZqxh8BZbPoP/3Zk0Xvwzr/ZKVmzXR5ZhPxDgEVUJMg4Rd1oy8trd1K+uevqOr2DbuIGvM7k2hb8A==, tarball: https://registry.npmjs.org/@envio-dev/hypersync-client-darwin-x64/-/hypersync-client-darwin-x64-0.6.5.tgz}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
 
   '@envio-dev/hypersync-client-linux-arm64-gnu@0.6.5':
-    resolution: {integrity: sha512-MPTXagjE8/XQhNiZokIJWYqDcizf++TKOjbfYgCzlS6jzwgmeZs6WYcdYFC3FSaJyc9GX4diJ4GKOgbpR4XWtw==}
+    resolution: {integrity: sha512-MPTXagjE8/XQhNiZokIJWYqDcizf++TKOjbfYgCzlS6jzwgmeZs6WYcdYFC3FSaJyc9GX4diJ4GKOgbpR4XWtw==, tarball: https://registry.npmjs.org/@envio-dev/hypersync-client-linux-arm64-gnu/-/hypersync-client-linux-arm64-gnu-0.6.5.tgz}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
 
   '@envio-dev/hypersync-client-linux-x64-gnu@0.6.5':
-    resolution: {integrity: sha512-DUDY19T2O+ciniP8RHWEv6ziaCdVkkVVLhfXiovpLy+oR1K/+h7osUHD1HCPolibaU3V2EDpqTDhKBtvPXUGaQ==}
+    resolution: {integrity: sha512-DUDY19T2O+ciniP8RHWEv6ziaCdVkkVVLhfXiovpLy+oR1K/+h7osUHD1HCPolibaU3V2EDpqTDhKBtvPXUGaQ==, tarball: https://registry.npmjs.org/@envio-dev/hypersync-client-linux-x64-gnu/-/hypersync-client-linux-x64-gnu-0.6.5.tgz}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
 
   '@envio-dev/hypersync-client-linux-x64-musl@0.6.5':
-    resolution: {integrity: sha512-VolsHvPrk5PAdHN0ht1iowwXz7bwJO0L5qDuw3eSKF4qHuAzlwImB1CRhJrMIaE8McsDnN6fSlqDeTPRmzS/Ug==}
+    resolution: {integrity: sha512-VolsHvPrk5PAdHN0ht1iowwXz7bwJO0L5qDuw3eSKF4qHuAzlwImB1CRhJrMIaE8McsDnN6fSlqDeTPRmzS/Ug==, tarball: https://registry.npmjs.org/@envio-dev/hypersync-client-linux-x64-musl/-/hypersync-client-linux-x64-musl-0.6.5.tgz}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
 
   '@envio-dev/hypersync-client-win32-x64-msvc@0.6.5':
-    resolution: {integrity: sha512-D+bkkWbCsbgaTrhyVdXHysKUCVzFpkWoxmaHnm2anad7+yKKfx15afYirtZMTKc7CLkYqganghN4QsBsEHl3Iw==}
+    resolution: {integrity: sha512-D+bkkWbCsbgaTrhyVdXHysKUCVzFpkWoxmaHnm2anad7+yKKfx15afYirtZMTKc7CLkYqganghN4QsBsEHl3Iw==, tarball: https://registry.npmjs.org/@envio-dev/hypersync-client-win32-x64-msvc/-/hypersync-client-win32-x64-msvc-0.6.5.tgz}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
@@ -265,22 +268,22 @@ packages:
     resolution: {integrity: sha512-ooEGc6HP26xXq/N+GCGOT0JKCLDGrq2bQUZrQ7gyrJiZANJ/8YDTxTpQBXGMn+WbIQXNVpyWymm7KYVICQnyOg==}
 
   envio-darwin-arm64@2.26.0:
-    resolution: {integrity: sha512-lyGbPcwBoCtEaEEujC+74HlMYDQZNR607XuMIMvLLyPvL2kMImgn0rRXeuHoDBD/1KpdcDe3z3xXw6S/niOifA==}
+    resolution: {integrity: sha512-lyGbPcwBoCtEaEEujC+74HlMYDQZNR607XuMIMvLLyPvL2kMImgn0rRXeuHoDBD/1KpdcDe3z3xXw6S/niOifA==, tarball: https://registry.npmjs.org/envio-darwin-arm64/-/envio-darwin-arm64-2.26.0.tgz}
     cpu: [arm64]
     os: [darwin]
 
   envio-darwin-x64@2.26.0:
-    resolution: {integrity: sha512-UFbjq9qlbdwmcAwheIRnrfg36T8JrMWwUmVGXkPUpA3vtcxGfbGnxisHe3EEvwQA1OU1xEDLMC8g9zlogdyxnA==}
+    resolution: {integrity: sha512-UFbjq9qlbdwmcAwheIRnrfg36T8JrMWwUmVGXkPUpA3vtcxGfbGnxisHe3EEvwQA1OU1xEDLMC8g9zlogdyxnA==, tarball: https://registry.npmjs.org/envio-darwin-x64/-/envio-darwin-x64-2.26.0.tgz}
     cpu: [x64]
     os: [darwin]
 
   envio-linux-arm64@2.26.0:
-    resolution: {integrity: sha512-dOYJbUivtuzqTUY1h1YIFFeHPQYmJanCUASoiiISLCAyt96oijLcivwJPdHGStt33ixXu1EsKx+j5h5ALn9AJA==}
+    resolution: {integrity: sha512-dOYJbUivtuzqTUY1h1YIFFeHPQYmJanCUASoiiISLCAyt96oijLcivwJPdHGStt33ixXu1EsKx+j5h5ALn9AJA==, tarball: https://registry.npmjs.org/envio-linux-arm64/-/envio-linux-arm64-2.26.0.tgz}
     cpu: [arm64]
     os: [linux]
 
   envio-linux-x64@2.26.0:
-    resolution: {integrity: sha512-EV8rCDrCh9/0oNsMhvZdqi2rGLuWxcFn9QXGDkquZPtu4illECQeGYCdx5CFMVuNly9fEDbbzzwgED6y3ftDrA==}
+    resolution: {integrity: sha512-EV8rCDrCh9/0oNsMhvZdqi2rGLuWxcFn9QXGDkquZPtu4illECQeGYCdx5CFMVuNly9fEDbbzzwgED6y3ftDrA==, tarball: https://registry.npmjs.org/envio-linux-x64/-/envio-linux-x64-2.26.0.tgz}
     cpu: [x64]
     os: [linux]
 
@@ -330,7 +333,7 @@ packages:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
 
   fsevents@2.3.3:
-    resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
+    resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==, tarball: https://registry.npmjs.org/fsevents/-/fsevents-2.3.3.tgz}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
@@ -649,7 +652,7 @@ packages:
     hasBin: true
 
   tsconfig-paths@3.15.0:
-    resolution: {integrity: sha512-2Ac2RgzDe/cn48GvOe3M+o82pEFewD3UPbyoUHHdKasHwJKjds4fLXWf/Ux5kATBKN20oaFGu+jbElp1pos0mg==}
+    resolution: {integrity: sha512-2Ac2RgzDe/cn48GvOe3M+o82pEFewD3UPbyoUHHdKasHwJKjds4fLXWf/Ux5kATBKN20oaFGu+jbElp1pos0mg==, tarball: https://registry.npmjs.org/tsconfig-paths/-/tsconfig-paths-3.15.0.tgz}
 
   type-detect@4.1.0:
     resolution: {integrity: sha512-Acylog8/luQ8L7il+geoSxhEkazvkslg7PSNKOX59mbB9cOveP5aq9h74Y7YU8yDpJwetzQQrfIwtf4Wp4LKcw==}
@@ -723,6 +726,9 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod@4.0.17:
+    resolution: {integrity: sha512-1PHjlYRevNxxdy2JZ8JcNAw7rX8V9P1AKkP+x/xZfxB0K5FYfuV+Ug6P/6NVSR2jHQ+FzDDoDHS04nYUsOIyLQ==, tarball: https://registry.npmjs.org/zod/-/zod-4.0.17.tgz}
+
 snapshots:
 
   '@adraffy/ens-normalize@1.10.0': {}
@@ -786,9 +792,10 @@ snapshots:
     dependencies:
       undici-types: 5.25.3
 
-  abitype@1.0.5(typescript@5.2.2):
+  abitype@1.0.5(typescript@5.2.2)(zod@4.0.17):
     optionalDependencies:
       typescript: 5.2.2
+      zod: 4.0.17
 
   abort-controller@3.0.0:
     dependencies:
@@ -932,7 +939,7 @@ snapshots:
   envio-linux-x64@2.26.0:
     optional: true
 
-  envio@2.26.0(typescript@5.2.2):
+  envio@2.26.0(typescript@5.2.2)(zod@4.0.17):
     dependencies:
       '@envio-dev/hypersync-client': 0.6.5
       bignumber.js: 9.1.2
@@ -941,7 +948,7 @@ snapshots:
       prom-client: 15.0.0
       rescript: 11.1.3
       rescript-schema: 9.3.0(rescript@11.1.3)
-      viem: 2.21.0(typescript@5.2.2)
+      viem: 2.21.0(typescript@5.2.2)(zod@4.0.17)
     optionalDependencies:
       envio-darwin-arm64: 2.26.0
       envio-darwin-x64: 2.26.0
@@ -1333,14 +1340,14 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  viem@2.21.0(typescript@5.2.2):
+  viem@2.21.0(typescript@5.2.2)(zod@4.0.17):
     dependencies:
       '@adraffy/ens-normalize': 1.10.0
       '@noble/curves': 1.4.0
       '@noble/hashes': 1.4.0
       '@scure/bip32': 1.4.0
       '@scure/bip39': 1.3.0
-      abitype: 1.0.5(typescript@5.2.2)
+      abitype: 1.0.5(typescript@5.2.2)(zod@4.0.17)
       isows: 1.0.4(ws@8.17.1)
       webauthn-p256: 0.0.5
       ws: 8.17.1
@@ -1392,3 +1399,5 @@ snapshots:
   yn@2.0.0: {}
 
   yocto-queue@0.1.0: {}
+
+  zod@4.0.17: {}

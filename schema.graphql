@@ -22,6 +22,7 @@ type BeamR {
   beamPools: [BeamPool!]! @derivedFrom(field: "beamR")
   adminRole: Role!
   rootAdminRole: Role!
+  beams: [Beam!]! @derivedFrom(field: "beamR")
 }
 
 type BeamPool {
@@ -34,7 +35,26 @@ type BeamPool {
   beamCount: Int!
   totalUnits: BigInt!
   flowRate: BigInt!
+  lastUpdated: Int!
   poolAdminRole: Role!
+  metadata: PoolMetadata!
+  adjustmentFlowRate: BigInt!
+  adjustmentMember: String!
+  lastDistroUpdate: DistributionUpdated
+  distributionUpdates: [DistributionUpdated!]! @derivedFrom(field: "beamPool")
+  memberUnitsUpdated: [MemberUnitsUpdated!]! @derivedFrom(field: "beamPool")
+}
+
+# mul memberUnits by totalFlowrate and then divide by total units
+
+type PoolMetadata {
+  id: ID!
+  creatorFID: Int!
+  poolType: Int!
+  name: String!
+  description: String
+  castHash: String
+  instructions: String
 }
 
 type Beam {
@@ -44,8 +64,9 @@ type Beam {
   to: User!
   beamPool: BeamPool!
   units: BigInt!
-  receiverConnected: Boolean!
-  flowRate: BigInt!
+  isReceiverConnected: Boolean!
+  beamR: BeamR!
+  memberUnitsUpdated: [MemberUnitsUpdated!]! @derivedFrom(field: "beam")
 }
 
 type User {
@@ -73,6 +94,33 @@ type VanityMetrics {
   beams: Int!
   TokenMetrics: [TokenMetric!]! @derivedFrom(field: "vanityMetrics")
 }
+
+# Raw Events for SuperfluidPool Contract (filtered by BeamR specific pools only)
+
+type MemberUnitsUpdated {
+  id: ID!
+  beamPool: BeamPool!
+  beam: Beam!
+  member: String!
+  oldUnits: BigInt!
+  newUnits: BigInt!
+}
+
+# Raw Events for GDA Contract (filtered by BeamR specific pools only)
+
+type DistributionUpdated {
+  id: ID!
+  beamPool: BeamPool!
+  distributor: String!
+  oldFlowRate: BigInt!
+  newFlowRateFromDistributor: BigInt!
+  newTotalDistributionFlowRate: BigInt!
+  adjustmentFlowRate: BigInt!
+  adjustmentFlowRecipient: String!
+  operator: String!
+}
+
+# Raw Events for BeamR Contract
 
 type BeamR_Initialized {
   id: ID!

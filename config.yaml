@@ -7,7 +7,7 @@ networks:
   - name: BeamR
     address:
     - 0xf8405d14CF994017015fd94Db54C9D0899FD465B
-    handler: src/EventHandlers.ts
+    handler: src/BeamR.ts
     events:
     - event: Initialized(bytes32 adminRole, bytes32 rootAdminRole)
     - event: PoolCreated(address pool, address token, (bool,bool) config, address creator, bytes32 poolAdminRole, (uint256,string) metadata)
@@ -15,6 +15,18 @@ networks:
     - event: RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
     - event: RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)
     - event: RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
+  - name: GDA
+    address: 
+    - 0x53F4f44C813Dc380182d0b2b67fe5832A12B97f8
+    handler: src/GDA.ts
+    events: 
+    - event: FlowDistributionUpdated(address indexed token,address indexed pool,address indexed distributor,address operator,int96 oldFlowRate,int96 newDistributorToPoolFlowRate,int96 newTotalDistributionFlowRate,address adjustmentFlowRecipient,int96 adjustmentFlowRate,bytes userData)
+    - event: PoolConnectionUpdated(address indexed token, address indexed pool, address indexed account, bool isConnected, bytes userData)
+  - name: SuperfluidPool
+    handler: src/SuperfluidPool.ts
+    events:
+    - event: MemberUnitsUpdated(address indexed token, address indexed member, uint128 oldUnits, uint128 newUnits)
+    - event: DistributionClaimed(address indexed token, address indexed member, uint128 amount, uint128 units, uint256 timestamp)
 unordered_multichain_mode: true
 field_selection: 
   transaction_fields:
