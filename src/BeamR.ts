@@ -142,7 +142,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     roleHash: event.params.poolAdminRole,
     beamPool_id: event.params.pool,
     beamR_id: `${event.chainId}_${event.srcAddress}`,
-    admins: [event.params.creator],
+    admins: [],
   };
 
   const BeamPool: BeamPool = {
