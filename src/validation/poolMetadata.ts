@@ -15,7 +15,7 @@ export const poolMetadataSchema = z.object({
   description: z
     .string()
     .min(1, 'Pool description must be at least 1 character long')
-    .nullable(),
-  castHash: z.string().nullable(),
-  instructions: z.string().nullable(),
+    .optional(),
+  castHash: z.string().optional(),
+  instructions: z.string().optional(),
 });

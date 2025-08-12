@@ -17,7 +17,7 @@ networks:
     - event: RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
   - name: GDA
     address: 
-    - 0xfE6c87BE05feDB2059d2EC41bA0A09826C9FD7aa
+    - 0x53F4f44C813Dc380182d0b2b67fe5832A12B97f8
     handler: src/GDA.ts
     events: 
     - event: FlowDistributionUpdated(address indexed token,address indexed pool,address indexed distributor,address operator,int96 oldFlowRate,int96 newDistributorToPoolFlowRate,int96 newTotalDistributionFlowRate,address adjustmentFlowRecipient,int96 adjustmentFlowRate,bytes userData)

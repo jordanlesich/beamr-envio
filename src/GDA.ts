@@ -9,18 +9,26 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
   if (!beamPool) {
     return;
   }
+  context.log.info(
+    `Handling FlowDistributionUpdated for pool: ${event.params.pool}, chainId: ${event.chainId}, tx: ${event.transaction.hash}`
+  );
 
   const distroUpdate: DistributionUpdated = {
     id: _key.event(event),
     beamPool_id: event.params.pool,
     distributor: event.params.distributor,
     oldFlowRate: event.params.oldFlowRate,
+    operator: event.params.operator,
     newFlowRateFromDistributor: event.params.newDistributorToPoolFlowRate,
-    newTotalFlowRate: event.params.newTotalDistributionFlowRate,
+    newTotalDistributionFlowRate: event.params.newTotalDistributionFlowRate,
+    adjustmentFlowRate: event.params.adjustmentFlowRate,
+    adjustmentFlowRecipient: event.params.adjustmentFlowRecipient,
   };
 
   context.BeamPool.set({
     ...beamPool,
+    adjustmentFlowRate: event.params.adjustmentFlowRate,
+    adjustmentMember: event.params.adjustmentFlowRecipient,
     lastDistroUpdate_id: distroUpdate.id,
     flowRate: event.params.newTotalDistributionFlowRate,
     lastUpdated: event.block.timestamp,

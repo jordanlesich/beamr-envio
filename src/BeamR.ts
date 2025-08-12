@@ -18,6 +18,8 @@ import {
   VanityMetrics,
 } from 'generated/src/Types.gen';
 import { ONCHAIN_EVENT, poolMetadataSchema } from './validation/poolMetadata';
+import { safeJSONParse } from './utils/common';
+import { zeroAddress } from 'viem';
 
 const VANITY_METRICS = 'VANITY_METRICS';
 
@@ -148,13 +150,21 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
       poolAddress: event.params.pool,
     }),
     chainId: event.chainId,
-    beamR_id: `${event.chainId}_${event.srcAddress}`,
-    creator_id: event.params.creator,
+    beamR_id: _key.beamR({
+      chainId: event.chainId,
+      address: event.srcAddress,
+    }),
+    creator_id: creator.id,
     token: event.params.token,
     beamCount: 0,
     totalUnits: 0n,
     flowRate: 0n,
-    poolAdminRole_id: event.params.poolAdminRole,
+    adjustmentFlowRate: 0n,
+    adjustmentMember: zeroAddress,
+    poolAdminRole_id: _key.role({
+      roleHash: event.params.poolAdminRole,
+      chainId: event.chainId,
+    }),
     lastDistroUpdate_id: undefined,
     lastUpdated: event.block.timestamp,
     metadata_id: event.params.pool,
@@ -177,6 +187,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     context.log.error(`VanityMetrics not found on chainId: ${event.chainId}`);
     return;
   }
+  //
 
   const newMetrics: VanityMetrics = {
     ...vanityMetrics,

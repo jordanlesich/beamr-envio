@@ -1,4 +1,4 @@
-const safeJSONParse = (jsonString: string): any => {
+export const safeJSONParse = (jsonString: string): any => {
   try {
     return JSON.parse(jsonString);
   } catch (error) {

@@ -38,10 +38,14 @@ type BeamPool {
   lastUpdated: Int!
   poolAdminRole: Role!
   metadata: PoolMetadata!
+  adjustmentFlowRate: BigInt!
+  adjustmentMember: String!
   lastDistroUpdate: DistributionUpdated
   distributionUpdates: [DistributionUpdated!]! @derivedFrom(field: "beamPool")
   memberUnitsUpdated: [MemberUnitsUpdated!]! @derivedFrom(field: "beamPool")
 }
+
+# mul memberUnits by totalFlowrate and then divide by total units
 
 type PoolMetadata {
   id: ID!
@@ -110,7 +114,10 @@ type DistributionUpdated {
   distributor: String!
   oldFlowRate: BigInt!
   newFlowRateFromDistributor: BigInt!
-  newTotalFlowRate: BigInt!
+  newTotalDistributionFlowRate: BigInt!
+  adjustmentFlowRate: BigInt!
+  adjustmentFlowRecipient: String!
+  operator: String!
 }
 
 # Raw Events for BeamR Contract
