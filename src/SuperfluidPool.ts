@@ -1,4 +1,4 @@
-import { Beam, MemberUnitsUpdated, SuperfluidPool, User } from 'generated';
+import { Beam, MemberUnitsUpdated, SuperfluidPool } from 'generated';
 import { createTx } from './utils/sync';
 
 SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {
