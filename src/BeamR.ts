@@ -5,7 +5,6 @@ import {
   BeamR,
   BeamR_Initialized,
   BeamR_PoolCreated,
-  BeamR_PoolMetadataUpdated,
   BeamR_RoleGranted,
   BeamR_RoleRevoked,
 } from 'generated';
@@ -19,7 +18,6 @@ import {
   VanityMetrics,
 } from 'generated/src/Types.gen';
 import { ONCHAIN_EVENT, poolMetadataSchema } from './validation/poolMetadata';
-import { id } from 'zod/v4/locales/index.cjs';
 
 const VANITY_METRICS = 'VANITY_METRICS';
 
