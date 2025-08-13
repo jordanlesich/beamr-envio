@@ -1,4 +1,4 @@
-## Envio Indexer
+## Beamr Indexer
 
 
 <img width="1024" height="1024" alt="943ed73f-2786-4e18-b94b-7eebd1c16742" src="https://github.com/user-attachments/assets/a0919641-4763-4eb8-9fff-16fc69aa29de" />
