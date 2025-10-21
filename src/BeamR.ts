@@ -3,13 +3,17 @@
  */
 import {
   BeamR,
-  BeamR_Initialized,
-  BeamR_PoolCreated,
   BeamR_RoleGranted,
+  BeamR_Initialized,
   BeamR_RoleRevoked,
 } from 'generated';
 import { _key, createTx } from './utils/sync';
-import { BeamPool, beamR, PoolMetadata, Role } from 'generated/src/Types.gen';
+import {
+  BeamPool,
+  BeamrGlobal,
+  PoolMetadata,
+  Role,
+} from 'generated/src/Types.gen';
 import {
   Action,
   ONCHAIN_EVENT,
@@ -43,7 +47,7 @@ BeamR.Initialized.handler(async ({ event, context }) => {
     admins: [],
   };
 
-  const beamR: beamR = {
+  const beamR: BeamrGlobal = {
     id: _key.beamR({
       chainId: event.chainId,
       address: event.srcAddress,
@@ -59,7 +63,7 @@ BeamR.Initialized.handler(async ({ event, context }) => {
     tx_id: tx.id,
   };
 
-  context.BeamR.set(beamR);
+  context.BeamrGlobal.set(beamR);
   context.BeamR_Initialized.set(entity);
   context.Role.set(adminRole);
   context.Role.set(rootAdminRole);

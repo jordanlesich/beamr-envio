@@ -1,12 +1,7 @@
-# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+# yaml-language: $schema=./node_modules/envio/evm.schema.json
 name: beamr-envio
-networks:
-- id: 84532
-  start_block: 32608756
-  contracts:
+contracts:
   - name: BeamR
-    address:
-    - 0xeb8eF8668ce6129DEc5b6bac2dcA8df4E03eeDE2
     handler: src/BeamR.ts
     events:
     - event: Initialized(bytes32 adminRole, bytes32 rootAdminRole)
@@ -17,8 +12,6 @@ networks:
     - event: RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
     - event: MemberUnitsUpdated((address, uint128)[] members, address[] poolAddresses, uint8 action, (uint256, string) metadata);
   - name: GDA
-    address: 
-    - 0x53F4f44C813Dc380182d0b2b67fe5832A12B97f8
     handler: src/GDA.ts
     events: 
     - event: FlowDistributionUpdated(address indexed token,address indexed pool,address indexed distributor,address operator,int96 oldFlowRate,int96 newDistributorToPoolFlowRate,int96 newTotalDistributionFlowRate,address adjustmentFlowRecipient,int96 adjustmentFlowRate,bytes userData)
@@ -33,3 +26,15 @@ field_selection:
   transaction_fields:
     - from
     - hash
+networks:
+  - id: 84532
+    start_block: 32608756
+    contracts:
+      - name: BeamR
+        address:
+        - 0xeb8eF8668ce6129DEc5b6bac2dcA8df4E03eeDE2
+      - name: GDA
+        address:
+        - 0x53F4f44C813Dc380182d0b2b67fe5832A12B97f8  
+      - name: SuperfluidPool  
+  

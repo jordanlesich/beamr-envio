@@ -12,11 +12,11 @@ type Role {
   chainId: Int!
   roleHash: String!
   beamPool: BeamPool
-  beamR: BeamR!
+  beamR: BeamrGlobal!
   admins: [String!]!
 }
 
-type BeamR {
+type BeamrGlobal {
   id: ID!
   chainId: Int!
   beamPools: [BeamPool!]! @derivedFrom(field: "beamR")
@@ -45,7 +45,7 @@ type UserAccount {
 type BeamPool {
   id: ID! #poolAddress
   chainId: Int!
-  beamR: BeamR!
+  beamR: BeamrGlobal!
   creator: User!
   creatorAccount: UserAccount!
   token: String!
@@ -86,7 +86,7 @@ type Beam {
   recipientAccount: UserAccount!
   units: BigInt!
   isReceiverConnected: Boolean!
-  beamR: BeamR!
+  beamR: BeamrGlobal!
   lastUpdated: Int!
   memberUnitsUpdated: [MemberUnitsUpdated!]! @derivedFrom(field: "beam")
 }
