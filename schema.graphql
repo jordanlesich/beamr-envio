@@ -60,6 +60,7 @@ type BeamPool {
   adjustmentFlowRate: BigInt!
   adjustmentMember: String!
   lastDistroUpdate: DistributionUpdated
+  allRecipients: [String!]!
   distributionUpdates: [DistributionUpdated!]! @derivedFrom(field: "beamPool")
   memberUnitsUpdated: [MemberUnitsUpdated!]! @derivedFrom(field: "beamPool")
 }
