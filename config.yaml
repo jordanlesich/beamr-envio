@@ -2,7 +2,7 @@
 name: beamr-envio
 networks:
 - id: 84532
-  start_block: 0
+  start_block: 32608756
   contracts:
   - name: BeamR
     address:
@@ -10,7 +10,7 @@ networks:
     handler: src/BeamR.ts
     events:
     - event: Initialized(bytes32 adminRole, bytes32 rootAdminRole)
-    - event: PoolCreated(address pool, address token, (bool,bool) config, (address,uint256)[] members, address creator, bytes32 poolAdminRole, (uint256,string) metadata)
+    - event: PoolCreated(address pool, address token, (bool,bool) config, (address,uint128)[] members, address creator, bytes32 poolAdminRole, (uint256,string) metadata)
     - event: PoolMetadataUpdated(address pool, (uint256,string) metadata)
     - event: RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
     - event: RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)

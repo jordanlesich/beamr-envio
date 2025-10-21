@@ -75,8 +75,6 @@ BeamR.PoolCreated.contractRegister(async ({ event, context }) => {
 BeamR.PoolCreated.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
-  context.log.info('runs');
-
   if (event.params.metadata[0] !== ONCHAIN_EVENT) {
     context.log.error(
       `Invalid metadata for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
@@ -153,11 +151,11 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
       chainId: event.chainId,
       address: event.srcAddress,
     }),
-    creator_id: 'fid',
+    creator_id: _key.user({ fid: creatorFID }),
     creatorAccount_id: event.params.creator,
     token: event.params.token,
-    beamCount: 0,
-    totalUnits: 0n,
+    beamCount: membersData.length,
+    totalUnits: membersData.reduce((acc, member) => acc + member.units, 0n),
     flowRate: 0n,
     adjustmentFlowRate: 0n,
     adjustmentMember: zeroAddress,
