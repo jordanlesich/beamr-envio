@@ -8,6 +8,12 @@ export enum PoolType {
   Earn,
 }
 
+export enum Action {
+  Update,
+  Increase,
+  Decrease,
+}
+
 export const poolMetadataSchema = z.object({
   // version: z.literal(1),
   creatorFID: z.number().int(),
@@ -22,6 +28,12 @@ export const poolMetadataSchema = z.object({
     .optional(),
   castHash: z.string().optional(),
   instructions: z.string().optional(),
+  fidRouting: z.array(
+    z.tuple([z.number().int().positive(), z.number().int().positive()])
+  ),
+});
+
+export const unitAdjustmentSchema = z.object({
   fidRouting: z.array(
     z.tuple([z.number().int().positive(), z.number().int().positive()])
   ),

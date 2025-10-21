@@ -52,6 +52,7 @@ type BeamPool {
   beams: [Beam!]! @derivedFrom(field: "beamPool")
   beamCount: Int!
   totalUnits: BigInt!
+  active: Boolean!
   flowRate: BigInt!
   lastUpdated: Int!
   poolAdminRole: Role!
@@ -62,26 +63,6 @@ type BeamPool {
   distributionUpdates: [DistributionUpdated!]! @derivedFrom(field: "beamPool")
   memberUnitsUpdated: [MemberUnitsUpdated!]! @derivedFrom(field: "beamPool")
 }
-
-# type BeamPool {
-#   id: ID!
-#   chainId: Int!
-#   beamR: BeamR!
-#   creator: User!
-#   token: String!
-#   beams: [Beam!]! @derivedFrom(field: "beamPool")
-#   beamCount: Int!
-#   totalUnits: BigInt!
-#   flowRate: BigInt!
-#   lastUpdated: Int!
-#   poolAdminRole: Role!
-#   metadata: PoolMetadata!
-#   adjustmentFlowRate: BigInt!
-#   adjustmentMember: String!
-#   lastDistroUpdate: DistributionUpdated
-#   distributionUpdates: [DistributionUpdated!]! @derivedFrom(field: "beamPool")
-#   memberUnitsUpdated: [MemberUnitsUpdated!]! @derivedFrom(field: "beamPool")
-# }
 
 # # mul memberUnits by totalFlowrate and then divide by total units
 
@@ -105,6 +86,7 @@ type Beam {
   units: BigInt!
   isReceiverConnected: Boolean!
   beamR: BeamR!
+  lastUpdated: Int!
   memberUnitsUpdated: [MemberUnitsUpdated!]! @derivedFrom(field: "beam")
 }
 
