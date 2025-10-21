@@ -560,4 +560,6 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
       beamCount: beamPool.beamCount + allNewRecipientsOfPool.length,
     });
   });
+
+  context.TX.set(tx);
 });
