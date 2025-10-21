@@ -28,8 +28,9 @@ export const _key = {
     `${poolAddress}_${to}`,
   beamPool: ({ poolAddress }: { poolAddress: string }) => poolAddress,
   poolMetadata: ({ poolAddress }: { poolAddress: string }) => poolAddress,
-  user: ({ chainId, address }: { chainId: number; address: string }) =>
+  userAccount: ({ chainId, address }: { chainId: number; address: string }) =>
     `${chainId}_${address}`,
+  user: ({ fid }: { fid: number }) => fid.toString(),
   beamR: ({ chainId, address }: { chainId: number; address: string }) =>
     `${chainId}_${address}`,
   role: ({ chainId, roleHash }: { chainId: number; roleHash: string }) =>

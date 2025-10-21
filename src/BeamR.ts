@@ -21,24 +21,15 @@ import { ONCHAIN_EVENT, poolMetadataSchema } from './validation/poolMetadata';
 import { safeJSONParse } from './utils/common';
 import { zeroAddress } from 'viem';
 
-const VANITY_METRICS = 'VANITY_METRICS';
-
 BeamR.Initialized.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
-
-  const VanityMetrics: VanityMetrics = {
-    id: VANITY_METRICS,
-    users: 0,
-    beamPools: 0,
-    beams: 0,
-  };
 
   const adminRole: Role = {
     id: _key.role({ chainId: event.chainId, roleHash: event.params.adminRole }),
     chainId: event.chainId,
     roleHash: event.params.adminRole,
     beamPool_id: undefined,
-    beamR_id: `${event.chainId}_${event.srcAddress}`,
+    beamR_id: _key.beamR({ chainId: event.chainId, address: event.srcAddress }),
     admins: [],
   };
 
@@ -50,7 +41,7 @@ BeamR.Initialized.handler(async ({ event, context }) => {
     chainId: event.chainId,
     roleHash: event.params.rootAdminRole,
     beamPool_id: undefined,
-    beamR_id: `${event.chainId}_${event.srcAddress}`,
+    beamR_id: _key.beamR({ chainId: event.chainId, address: event.srcAddress }),
     admins: [],
   };
 
@@ -71,7 +62,6 @@ BeamR.Initialized.handler(async ({ event, context }) => {
   };
 
   context.BeamR.set(beamR);
-  context.VanityMetrics.set(VanityMetrics);
   context.BeamR_Initialized.set(entity);
   context.Role.set(adminRole);
   context.Role.set(rootAdminRole);
@@ -84,7 +74,8 @@ BeamR.PoolCreated.contractRegister(async ({ event, context }) => {
 
 BeamR.PoolCreated.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
-  const vanityMetrics = await context.VanityMetrics.get(VANITY_METRICS);
+
+  context.log.info('runs');
 
   if (event.params.metadata[0] !== ONCHAIN_EVENT) {
     context.log.error(
@@ -111,26 +102,34 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     return;
   }
 
+  const { creatorFID, poolType, name, description, fidRouting } =
+    validated.data;
+
+  if (fidRouting.length !== event.params.members.length) {
+    context.log.error(
+      `Mismatch between fidRouting length and members length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+
+  const membersData = event.params.members.map((member, index) => {
+    return {
+      address: member[0],
+      fid: fidRouting[index][1],
+      units: member[1],
+    };
+  });
+
   const metadata: PoolMetadata = {
     id: _key.poolMetadata({
       poolAddress: event.params.pool,
     }),
-    creatorFID: validated.data.creatorFID,
-    poolType: validated.data.poolType,
-    name: validated.data.name,
-    description: validated.data.description || undefined,
-    castHash: validated.data.castHash || undefined,
-    instructions: validated.data.instructions || undefined,
-  };
-
-  const creator: User = {
-    id: _key.user({
-      chainId: event.chainId,
-      address: event.params.creator,
-    }),
-    chainId: event.chainId,
-    address: event.params.creator,
-    fid: metadata.creatorFID,
+    creatorFID: creatorFID,
+    poolType: poolType,
+    name: name,
+    description: description || undefined,
+    castHash: undefined,
+    instructions: undefined,
   };
 
   const poolAdminRole: Role = {
@@ -154,7 +153,8 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
       chainId: event.chainId,
       address: event.srcAddress,
     }),
-    creator_id: creator.id,
+    creator_id: 'fid',
+    creatorAccount_id: event.params.creator,
     token: event.params.token,
     beamCount: 0,
     totalUnits: 0n,
@@ -183,26 +183,66 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     tx_id: tx.id,
   };
 
-  if (!vanityMetrics) {
-    context.log.error(`VanityMetrics not found on chainId: ${event.chainId}`);
-    return;
-  }
-  //
+  context.User.set({
+    id: _key.user({ fid: creatorFID }),
+    fid: creatorFID,
+  });
 
-  const newMetrics: VanityMetrics = {
-    ...vanityMetrics,
-    users: vanityMetrics.users + 1,
-    beamPools: vanityMetrics.beamPools + 1,
-  };
+  context.UserAccount.set({
+    id: _key.userAccount({
+      chainId: event.chainId,
+      address: event.params.creator,
+    }),
+    chainId: event.chainId,
+    address: event.params.creator,
+    user_id: _key.user({ fid: creatorFID }),
+  });
 
   context.Role.set(poolAdminRole);
   context.BeamR_PoolCreated.set(entity);
   context.BeamPool.set(BeamPool);
-  context.User.set(creator);
-  context.VanityMetrics.set(newMetrics);
   context.PoolMetadata.set(metadata);
-
   context.TX.set(tx);
+
+  membersData.forEach(async (memberData) => {
+    context.User.set({
+      id: memberData.fid.toString(),
+      fid: memberData.fid,
+    });
+
+    context.UserAccount.set({
+      id: _key.userAccount({
+        chainId: event.chainId,
+        address: memberData.address,
+      }),
+      chainId: event.chainId,
+      address: memberData.address,
+      user_id: _key.user({ fid: memberData.fid }),
+    });
+
+    context.Beam.set({
+      id: _key.beam({
+        poolAddress: event.params.pool,
+        to: memberData.address,
+      }),
+      chainId: event.chainId,
+      from_id: _key.user({ fid: creatorFID }),
+      to_id: _key.user({ fid: memberData.fid }),
+      beamPool_id: _key.beamPool({
+        poolAddress: event.params.pool,
+      }),
+      recipientAccount_id: _key.userAccount({
+        chainId: event.chainId,
+        address: memberData.address,
+      }),
+      units: memberData.units,
+      isReceiverConnected: false,
+      beamR_id: _key.beamR({
+        chainId: event.chainId,
+        address: event.srcAddress,
+      }),
+    });
+  });
 });
 
 BeamR.PoolMetadataUpdated.handler(async ({ event, context }) => {
