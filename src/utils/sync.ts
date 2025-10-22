@@ -31,6 +31,7 @@ export const _key = {
   userAccount: ({ chainId, address }: { chainId: number; address: string }) =>
     `${chainId}_${address}`,
   user: ({ fid }: { fid: number }) => fid.toString(),
+  profile: ({ fid }: { fid: number }) => fid.toString(),
   beamR: ({ chainId, address }: { chainId: number; address: string }) =>
     `${chainId}_${address}`,
   role: ({ chainId, roleHash }: { chainId: number; roleHash: string }) =>

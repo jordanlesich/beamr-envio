@@ -22,6 +22,7 @@ import {
 } from './validation/poolMetadata';
 import { safeJSONParse } from './utils/common';
 import { zeroAddress } from 'viem';
+import { getFcProfiles } from './effects/getFcProfile';
 
 BeamR.Initialized.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
@@ -120,6 +121,12 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     };
   });
 
+  const creatorProfile = await context.effect(getFcProfiles, creatorFID);
+
+  const memberProfiles = await Promise.all(
+    membersData.map((member) => context.effect(getFcProfiles, member.fid))
+  );
+
   const metadata: PoolMetadata = {
     id: _key.poolMetadata({
       poolAddress: event.params.pool,
@@ -175,7 +182,18 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   context.User.set({
     id: _key.user({ fid: creatorFID }),
     fid: creatorFID,
+    profile_id: _key.profile({ fid: creatorFID }),
   });
+
+  if (creatorProfile) {
+    context.Profile.set({
+      id: _key.profile({ fid: creatorFID }),
+      user_id: _key.user({ fid: creatorFID }),
+      display_name: creatorProfile.display_name,
+      username: creatorProfile.username,
+      pfp_url: creatorProfile.pfp_url,
+    });
+  }
 
   context.UserAccount.set({
     id: _key.userAccount({
@@ -192,11 +210,24 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   context.PoolMetadata.set(metadata);
   context.TX.set(tx);
 
-  membersData.forEach(async (memberData) => {
+  membersData.forEach(async (memberData, index) => {
     context.User.set({
-      id: memberData.fid.toString(),
+      id: _key.user({ fid: memberData.fid }),
       fid: memberData.fid,
+      profile_id: _key.profile({ fid: memberData.fid }),
     });
+
+    const memberProfile = memberProfiles[index];
+
+    if (memberProfile) {
+      context.Profile.set({
+        id: _key.profile({ fid: memberData.fid }),
+        user_id: _key.user({ fid: memberData.fid }),
+        display_name: memberProfile.display_name,
+        username: memberProfile.username,
+        pfp_url: memberProfile.pfp_url,
+      });
+    }
 
     context.UserAccount.set({
       id: _key.userAccount({
@@ -457,6 +488,7 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
       context.User.set({
         id: _key.user({ fid }),
         fid,
+        profile_id: _key.profile({ fid }),
       });
 
       // implicitly, the UserAccount must exist for this fid since it's in the routing

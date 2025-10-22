@@ -32,6 +32,15 @@ type User {
   pools: [BeamPool!]! @derivedFrom(field: "creator")
   incoming: [Beam!]! @derivedFrom(field: "to")
   outgoing: [Beam!]! @derivedFrom(field: "from")
+  profile: Profile
+}
+
+type Profile {
+  id: ID! # FID string
+  user: User!
+  display_name: String
+  username: String
+  pfp_url: String
 }
 
 type UserAccount {
