@@ -22,8 +22,9 @@ import {
 } from './validation/poolMetadata';
 import { safeJSONParse } from './utils/common';
 import { zeroAddress } from 'viem';
-import { getFcProfiles } from './effects/getFcProfile';
+import { getFcProfile } from './effects/getFcProfile';
 
+//
 BeamR.Initialized.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
@@ -35,7 +36,7 @@ BeamR.Initialized.handler(async ({ event, context }) => {
     beamR_id: _key.beamR({ chainId: event.chainId, address: event.srcAddress }),
     admins: [],
   };
-
+  //
   const rootAdminRole: Role = {
     id: _key.role({
       chainId: event.chainId,
@@ -121,12 +122,12 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     };
   });
 
-  const creatorProfile = await context.effect(getFcProfiles, creatorFID);
-
-  const memberProfiles = await Promise.all(
-    membersData.map((member) => context.effect(getFcProfiles, member.fid))
+  const [creatorProfile, ...memberProfiles] = await context.effect(
+    getFcProfile,
+    [creatorFID, ...membersData.map((m) => m.fid)]
   );
 
+  //
   const metadata: PoolMetadata = {
     id: _key.poolMetadata({
       poolAddress: event.params.pool,
