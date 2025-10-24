@@ -122,10 +122,15 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     };
   });
 
-  const [creatorProfile, ...memberProfiles] = await context.effect(
-    getFcProfile,
-    [creatorFID, ...membersData.map((m) => m.fid)]
-  );
+  const [creatorProfile, ...memberProfiles] = await getFcProfile([
+    creatorFID,
+    ...membersData.map((m) => m.fid),
+  ]);
+
+  // await context.effect(
+  //   getFcProfile,
+  //   [creatorFID, ...membersData.map((m) => m.fid)]
+  // );
 
   //
   const metadata: PoolMetadata = {
@@ -162,7 +167,10 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
       address: event.srcAddress,
     }),
     creator_id: _key.user({ fid: creatorFID }),
-    creatorAccount_id: event.params.creator,
+    creatorAccount_id: _key.userAccount({
+      chainId: event.chainId,
+      address: event.params.creator,
+    }),
     token: event.params.token,
     beamCount: membersData.length,
     totalUnits: membersData.reduce((acc, member) => acc + member.units, 0n),
@@ -380,23 +388,22 @@ BeamR.RoleRevoked.handler(async ({ event, context }) => {
 });
 
 BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
+  context.log.info(
+    `Processing MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+  );
   const tx = createTx(event, context, false);
-
   const {
     action: actionParam,
     metadata,
     members,
     poolAddresses,
   } = event.params;
-
   if (!Object.values(Action).includes(Number(actionParam))) {
     context.log.error(
       `Invalid action type for MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
     );
   }
-
   const action = Number(actionParam) as Action;
-
   if (metadata[0] !== ONCHAIN_EVENT) {
     context.log.error(
       `Invalid metadata for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
@@ -404,7 +411,6 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     return;
   }
   const parsedJSON = safeJSONParse(metadata[1]);
-
   if (!parsedJSON) {
     context.log.error(
       `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`
@@ -412,53 +418,41 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     return;
   }
   const validated = unitAdjustmentSchema.safeParse(JSON.parse(metadata[1]));
-
   if (!validated.success) {
     context.log.error(
       `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`
     );
     return;
   }
-
   const { fidRouting } = validated.data;
-
   if (fidRouting.length !== members.length) {
     context.log.error(
       `Mismatch between fidRouting length and members length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
     );
     return;
   }
-
   if (members.length !== poolAddresses.length) {
     context.log.error(
       `Mismatch between members length and poolAddresses length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
     );
     return;
   }
-
   const fullRouting = event.params.members.map((member, index) => {
     return {
       action: action,
       poolAddress: poolAddresses[index],
       address: member[0],
-      fidInco: fidRouting[index][0],
-      fidOutgo: fidRouting[index][1],
+      fidOutgo: fidRouting[index][0],
+      fidInco: fidRouting[index][1],
       units: member[1],
     };
   });
-
   const allUniqueFIDs = [
     ...new Set(fullRouting.flatMap((tx) => [tx.fidInco, tx.fidOutgo])),
   ];
-
-  const allUniqueReceiverAddresses = [
-    ...new Set(fullRouting.map((tx) => tx.address)),
-  ];
-
   const potentiallyExistingUsers = await Promise.all(
     allUniqueFIDs.map((fid) => context.User.get(_key.user({ fid })))
   );
-
   const potentiallyExistingBeams = await Promise.all(
     fullRouting.map((tx) =>
       context.Beam.get(
@@ -469,12 +463,14 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
       )
     )
   );
-
   const beamPools = (await Promise.all(
     fullRouting.map((tx) =>
       context.BeamPool.get(_key.beamPool({ poolAddress: tx.poolAddress }))
     )
   )) as BeamPool[];
+  const memberProfiles = await getFcProfile(allUniqueFIDs);
+
+  context.log.info('Fetched profiles for FIDs: ' + allUniqueFIDs.join(', '));
 
   if (!beamPools.every((pool) => pool !== undefined)) {
     context.log.error(
@@ -491,7 +487,6 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
         fid,
         profile_id: _key.profile({ fid }),
       });
-
       // implicitly, the UserAccount must exist for this fid since it's in the routing
       // and any outgoing member must have an account + pool to cause this event
       const address = fullRouting.find((tx) => tx.fidInco === fid)?.address;
@@ -506,14 +501,12 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
       }
     }
   });
-
   fullRouting.forEach((tx, index) => {
     const beam = potentiallyExistingBeams[index];
     const beamPool = beamPools[index];
     const allNewRecipientsOfPool = fullRouting
       .filter((t) => t.poolAddress === tx.poolAddress)
       .map((t) => t.address);
-
     if (!beam) {
       const newUnits =
         action === Action.Update
@@ -521,14 +514,12 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
           : action === Action.Increase
             ? tx.units
             : 0n;
-
       if (action === Action.Decrease) {
         context.log.error(
           `Cannot decrease units for non-existing Beam for poolAddress: ${tx.poolAddress} and address: ${tx.address} on chainId: ${event.chainId} at tx ${event.transaction.hash}`
         );
         return;
       }
-
       context.Beam.set({
         id: _key.beam({
           poolAddress: tx.poolAddress,
@@ -559,28 +550,24 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
         );
         return;
       }
-
       const newUnits =
         action === Action.Update
           ? tx.units
           : action === Action.Increase
             ? beam.units + tx.units
             : beam.units - tx.units;
-
       context.Beam.set({
         ...beam,
         units: newUnits,
         lastUpdated: event.block.timestamp,
       });
     }
-
     if (action === Action.Decrease && beamPool.totalUnits < tx.units) {
       context.log.error(
         `Cannot decrease more units than existing totalUnits for BeamPool for poolAddress: ${tx.poolAddress} on chainId: ${event.chainId} at tx ${event.transaction.hash}`
       );
       return;
     }
-
     context.BeamPool.set({
       ...beamPool,
       totalUnits:
@@ -598,5 +585,17 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     });
   });
 
+  memberProfiles.forEach((profile) => {
+    if (profile) {
+      context.Profile.set({
+        id: _key.profile({ fid: profile.fid }),
+        user_id: _key.user({ fid: profile.fid }),
+        display_name: profile.display_name,
+        username: profile.username,
+        pfp_url: profile.pfp_url,
+      });
+    }
+  });
   context.TX.set(tx);
 });
+//

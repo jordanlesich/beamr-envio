@@ -7,6 +7,7 @@ import { experimental_createEffect, S } from 'envio';
 const CACHE_PATH = path.resolve('../.envio/cache/getFcProfile.tsv');
 
 type Profile = {
+  fid: number;
   display_name: string;
   username: string;
   pfp_url: string;
@@ -42,23 +43,24 @@ async function writeCache(cache: Map<number, Profile>) {
   await fs.writeFile(CACHE_PATH, header + body, 'utf8');
 }
 
-export const getFcProfile = experimental_createEffect(
-  {
-    name: 'getFcProfile',
-    input: S.array(S.number),
-    cache: false,
-    output: S.array(
-      S.schema({
-        display_name: S.string,
-        username: S.string,
-        pfp_url: S.optional(S.string),
-        ttl: S.number,
-      })
-    ),
-  },
-  async ({ input: fids, context }) => {
+export const getFcProfile =
+  // experimental_createEffect(
+  //   {
+  //     name: 'getFcProfile',
+  //     input: S.array(S.number),
+  //     cache: false,
+  //     output: S.array(
+  //       S.schema({
+  //         display_name: S.string,
+  //         username: S.string,
+  //         pfp_url: S.optional(S.string),
+  //         ttl: S.number,
+  //       })
+  //     ),
+  //   },
+  async (fids: number[]) => {
     if (!process.env.NEYNAR_API_KEY) {
-      context.log.error('NEYNAR_API_KEY is not set');
+      console.error('NEYNAR_API_KEY is not set');
       return [];
     }
 
@@ -85,6 +87,7 @@ export const getFcProfile = experimental_createEffect(
         const response = await client.fetchBulkUsers({ fids: missingFids });
         for (const user of response.users || []) {
           const profile: Profile = {
+            fid: user.fid,
             display_name: user.display_name || user.username,
             username: user.username,
             pfp_url: user.pfp_url || '',
@@ -95,10 +98,9 @@ export const getFcProfile = experimental_createEffect(
         }
         await writeCache(cache);
       } catch (err) {
-        context.log.error(`Neynar fetch failed: ${(err as Error).message}`);
+        console.error(`Neynar fetch failed: ${(err as Error).message}`);
       }
     }
 
     return results;
-  }
-);
+  };
