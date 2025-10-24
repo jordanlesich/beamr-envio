@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Configuration, NeynarAPIClient } from '@neynar/nodejs-sdk';
-import { experimental_createEffect, S } from 'envio';
 
 //
 const CACHE_PATH = path.resolve('../.envio/cache/getFcProfile.tsv');
@@ -59,12 +58,14 @@ export const getFcProfile =
   //     ),
   //   },
   async (fids: number[]) => {
-    if (!process.env.NEYNAR_API_KEY) {
+    if (!process.env.ENVIO_NEYNAR_API_KEY) {
       console.error('NEYNAR_API_KEY is not set');
       return [];
     }
 
-    const config = new Configuration({ apiKey: process.env.NEYNAR_API_KEY });
+    const config = new Configuration({
+      apiKey: process.env.ENVIO_NEYNAR_API_KEY,
+    });
     const client = new NeynarAPIClient(config);
 
     const cache = await readCache();
