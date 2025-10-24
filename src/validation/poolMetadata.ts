@@ -8,9 +8,19 @@ export enum PoolType {
   Earn,
 }
 
+export enum Action {
+  Update,
+  Increase,
+  Decrease,
+}
+
 export const poolMetadataSchema = z.object({
+  // version: z.literal(1),
   creatorFID: z.number().int(),
   poolType: z.enum(PoolType),
+  displayName: z
+    .string()
+    .min(1, 'Display name must be at least 1 character long'),
   name: z.string().min(1, 'Pool name must be at least 1 character long'),
   description: z
     .string()
@@ -18,4 +28,13 @@ export const poolMetadataSchema = z.object({
     .optional(),
   castHash: z.string().optional(),
   instructions: z.string().optional(),
+  fidRouting: z.array(
+    z.tuple([z.number().int().positive(), z.number().int().positive()])
+  ),
+});
+
+export const unitAdjustmentSchema = z.object({
+  fidRouting: z.array(
+    z.tuple([z.number().int().positive(), z.number().int().positive()])
+  ),
 });

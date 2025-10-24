@@ -9,9 +9,6 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
   if (!beamPool) {
     return;
   }
-  context.log.info(
-    `Handling FlowDistributionUpdated for pool: ${event.params.pool}, chainId: ${event.chainId}, tx: ${event.transaction.hash}`
-  );
 
   const distroUpdate: DistributionUpdated = {
     id: _key.event(event),
@@ -27,6 +24,7 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
 
   context.BeamPool.set({
     ...beamPool,
+    active: true,
     adjustmentFlowRate: event.params.adjustmentFlowRate,
     adjustmentMember: event.params.adjustmentFlowRecipient,
     lastDistroUpdate_id: distroUpdate.id,

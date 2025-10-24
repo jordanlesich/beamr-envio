@@ -21,7 +21,8 @@
     "typescript": "5.2.2"
   },
   "dependencies": {
-    "envio": "2.26.0",
+    "@neynar/nodejs-sdk": "^3.34.0",
+    "envio": "2.30.1",
     "viem": "^2.33.3",
     "zod": "^4.0.17"
   },

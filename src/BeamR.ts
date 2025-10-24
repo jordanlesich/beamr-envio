@@ -3,45 +3,40 @@
  */
 import {
   BeamR,
-  BeamR_Initialized,
-  BeamR_PoolCreated,
   BeamR_RoleGranted,
+  BeamR_Initialized,
   BeamR_RoleRevoked,
 } from 'generated';
 import { _key, createTx } from './utils/sync';
 import {
   BeamPool,
-  beamR,
+  BeamrGlobal,
   PoolMetadata,
   Role,
-  User,
-  VanityMetrics,
 } from 'generated/src/Types.gen';
-import { ONCHAIN_EVENT, poolMetadataSchema } from './validation/poolMetadata';
+import {
+  Action,
+  ONCHAIN_EVENT,
+  poolMetadataSchema,
+  unitAdjustmentSchema,
+} from './validation/poolMetadata';
 import { safeJSONParse } from './utils/common';
 import { zeroAddress } from 'viem';
+import { getFcProfile } from './effects/getFcProfile';
 
-const VANITY_METRICS = 'VANITY_METRICS';
-
+//
 BeamR.Initialized.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
-
-  const VanityMetrics: VanityMetrics = {
-    id: VANITY_METRICS,
-    users: 0,
-    beamPools: 0,
-    beams: 0,
-  };
 
   const adminRole: Role = {
     id: _key.role({ chainId: event.chainId, roleHash: event.params.adminRole }),
     chainId: event.chainId,
     roleHash: event.params.adminRole,
     beamPool_id: undefined,
-    beamR_id: `${event.chainId}_${event.srcAddress}`,
+    beamR_id: _key.beamR({ chainId: event.chainId, address: event.srcAddress }),
     admins: [],
   };
-
+  //
   const rootAdminRole: Role = {
     id: _key.role({
       chainId: event.chainId,
@@ -50,11 +45,11 @@ BeamR.Initialized.handler(async ({ event, context }) => {
     chainId: event.chainId,
     roleHash: event.params.rootAdminRole,
     beamPool_id: undefined,
-    beamR_id: `${event.chainId}_${event.srcAddress}`,
+    beamR_id: _key.beamR({ chainId: event.chainId, address: event.srcAddress }),
     admins: [],
   };
 
-  const beamR: beamR = {
+  const beamR: BeamrGlobal = {
     id: _key.beamR({
       chainId: event.chainId,
       address: event.srcAddress,
@@ -70,8 +65,7 @@ BeamR.Initialized.handler(async ({ event, context }) => {
     tx_id: tx.id,
   };
 
-  context.BeamR.set(beamR);
-  context.VanityMetrics.set(VanityMetrics);
+  context.BeamrGlobal.set(beamR);
   context.BeamR_Initialized.set(entity);
   context.Role.set(adminRole);
   context.Role.set(rootAdminRole);
@@ -84,7 +78,6 @@ BeamR.PoolCreated.contractRegister(async ({ event, context }) => {
 
 BeamR.PoolCreated.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
-  const vanityMetrics = await context.VanityMetrics.get(VANITY_METRICS);
 
   if (event.params.metadata[0] !== ONCHAIN_EVENT) {
     context.log.error(
@@ -111,26 +104,45 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     return;
   }
 
+  const { creatorFID, poolType, name, description, fidRouting } =
+    validated.data;
+
+  if (fidRouting.length !== event.params.members.length) {
+    context.log.error(
+      `Mismatch between fidRouting length and members length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+
+  const membersData = event.params.members.map((member, index) => {
+    return {
+      address: member[0],
+      fid: fidRouting[index][1],
+      units: member[1],
+    };
+  });
+
+  const [creatorProfile, ...memberProfiles] = await getFcProfile([
+    creatorFID,
+    ...membersData.map((m) => m.fid),
+  ]);
+
+  // await context.effect(
+  //   getFcProfile,
+  //   [creatorFID, ...membersData.map((m) => m.fid)]
+  // );
+
+  //
   const metadata: PoolMetadata = {
     id: _key.poolMetadata({
       poolAddress: event.params.pool,
     }),
-    creatorFID: validated.data.creatorFID,
-    poolType: validated.data.poolType,
-    name: validated.data.name,
-    description: validated.data.description || undefined,
-    castHash: validated.data.castHash || undefined,
-    instructions: validated.data.instructions || undefined,
-  };
-
-  const creator: User = {
-    id: _key.user({
-      chainId: event.chainId,
-      address: event.params.creator,
-    }),
-    chainId: event.chainId,
-    address: event.params.creator,
-    fid: metadata.creatorFID,
+    creatorFID: creatorFID,
+    poolType: poolType,
+    name: name,
+    description: description || undefined,
+    castHash: undefined,
+    instructions: undefined,
   };
 
   const poolAdminRole: Role = {
@@ -154,10 +166,15 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
       chainId: event.chainId,
       address: event.srcAddress,
     }),
-    creator_id: creator.id,
+    creator_id: _key.user({ fid: creatorFID }),
+    creatorAccount_id: _key.userAccount({
+      chainId: event.chainId,
+      address: event.params.creator,
+    }),
     token: event.params.token,
-    beamCount: 0,
-    totalUnits: 0n,
+    beamCount: membersData.length,
+    totalUnits: membersData.reduce((acc, member) => acc + member.units, 0n),
+    active: false,
     flowRate: 0n,
     adjustmentFlowRate: 0n,
     adjustmentMember: zeroAddress,
@@ -168,41 +185,93 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     lastDistroUpdate_id: undefined,
     lastUpdated: event.block.timestamp,
     metadata_id: event.params.pool,
+    allRecipients: membersData.map((member) => member.address),
   };
 
-  const entity: BeamR_PoolCreated = {
-    id: _key.event(event),
-    pool: event.params.pool,
-    token: event.params.token,
-    config_0: event.params.config[0],
-    config_1: event.params.config[1],
-    creator: event.params.creator,
-    poolAdminRole: event.params.poolAdminRole,
-    metadata_0: event.params.metadata[0],
-    metadata_1: event.params.metadata[1],
-    tx_id: tx.id,
-  };
+  context.User.set({
+    id: _key.user({ fid: creatorFID }),
+    fid: creatorFID,
+    profile_id: _key.profile({ fid: creatorFID }),
+  });
 
-  if (!vanityMetrics) {
-    context.log.error(`VanityMetrics not found on chainId: ${event.chainId}`);
-    return;
+  if (creatorProfile) {
+    context.Profile.set({
+      id: _key.profile({ fid: creatorFID }),
+      user_id: _key.user({ fid: creatorFID }),
+      display_name: creatorProfile.display_name,
+      username: creatorProfile.username,
+      pfp_url: creatorProfile.pfp_url,
+    });
   }
-  //
 
-  const newMetrics: VanityMetrics = {
-    ...vanityMetrics,
-    users: vanityMetrics.users + 1,
-    beamPools: vanityMetrics.beamPools + 1,
-  };
+  context.UserAccount.set({
+    id: _key.userAccount({
+      chainId: event.chainId,
+      address: event.params.creator,
+    }),
+    chainId: event.chainId,
+    address: event.params.creator,
+    user_id: _key.user({ fid: creatorFID }),
+  });
 
   context.Role.set(poolAdminRole);
-  context.BeamR_PoolCreated.set(entity);
   context.BeamPool.set(BeamPool);
-  context.User.set(creator);
-  context.VanityMetrics.set(newMetrics);
   context.PoolMetadata.set(metadata);
-
   context.TX.set(tx);
+
+  membersData.forEach(async (memberData, index) => {
+    context.User.set({
+      id: _key.user({ fid: memberData.fid }),
+      fid: memberData.fid,
+      profile_id: _key.profile({ fid: memberData.fid }),
+    });
+
+    const memberProfile = memberProfiles[index];
+
+    if (memberProfile) {
+      context.Profile.set({
+        id: _key.profile({ fid: memberData.fid }),
+        user_id: _key.user({ fid: memberData.fid }),
+        display_name: memberProfile.display_name,
+        username: memberProfile.username,
+        pfp_url: memberProfile.pfp_url,
+      });
+    }
+
+    context.UserAccount.set({
+      id: _key.userAccount({
+        chainId: event.chainId,
+        address: memberData.address,
+      }),
+      chainId: event.chainId,
+      address: memberData.address,
+      user_id: _key.user({ fid: memberData.fid }),
+    });
+
+    context.Beam.set({
+      id: _key.beam({
+        poolAddress: event.params.pool,
+        to: memberData.address,
+      }),
+      chainId: event.chainId,
+      from_id: _key.user({ fid: creatorFID }),
+      to_id: _key.user({ fid: memberData.fid }),
+      beamPool_id: _key.beamPool({
+        poolAddress: event.params.pool,
+      }),
+      recipientAccount_id: _key.userAccount({
+        chainId: event.chainId,
+        address: memberData.address,
+      }),
+      units: memberData.units,
+      isReceiverConnected: false,
+      beamR_id: _key.beamR({
+        chainId: event.chainId,
+        address: event.srcAddress,
+      }),
+      lastUpdated: event.block.timestamp,
+    });
+  });
 });
 
 BeamR.PoolMetadataUpdated.handler(async ({ event, context }) => {
@@ -317,3 +386,217 @@ BeamR.RoleRevoked.handler(async ({ event, context }) => {
   context.BeamR_RoleRevoked.set(entity);
   context.TX.set(tx);
 });
+
+BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
+  context.log.info(
+    `Processing MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+  );
+  const tx = createTx(event, context, false);
+  const {
+    action: actionParam,
+    metadata,
+    members,
+    poolAddresses,
+  } = event.params;
+  if (!Object.values(Action).includes(Number(actionParam))) {
+    context.log.error(
+      `Invalid action type for MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+  }
+  const action = Number(actionParam) as Action;
+  if (metadata[0] !== ONCHAIN_EVENT) {
+    context.log.error(
+      `Invalid metadata for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+  const parsedJSON = safeJSONParse(metadata[1]);
+  if (!parsedJSON) {
+    context.log.error(
+      `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+  const validated = unitAdjustmentSchema.safeParse(JSON.parse(metadata[1]));
+  if (!validated.success) {
+    context.log.error(
+      `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`
+    );
+    return;
+  }
+  const { fidRouting } = validated.data;
+  if (fidRouting.length !== members.length) {
+    context.log.error(
+      `Mismatch between fidRouting length and members length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+  if (members.length !== poolAddresses.length) {
+    context.log.error(
+      `Mismatch between members length and poolAddresses length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+  const fullRouting = event.params.members.map((member, index) => {
+    return {
+      action: action,
+      poolAddress: poolAddresses[index],
+      address: member[0],
+      fidOutgo: fidRouting[index][0],
+      fidInco: fidRouting[index][1],
+      units: member[1],
+    };
+  });
+  const allUniqueFIDs = [
+    ...new Set(fullRouting.flatMap((tx) => [tx.fidInco, tx.fidOutgo])),
+  ];
+  const potentiallyExistingUsers = await Promise.all(
+    allUniqueFIDs.map((fid) => context.User.get(_key.user({ fid })))
+  );
+  const potentiallyExistingBeams = await Promise.all(
+    fullRouting.map((tx) =>
+      context.Beam.get(
+        _key.beam({
+          poolAddress: tx.poolAddress,
+          to: tx.address,
+        })
+      )
+    )
+  );
+  const beamPools = (await Promise.all(
+    fullRouting.map((tx) =>
+      context.BeamPool.get(_key.beamPool({ poolAddress: tx.poolAddress }))
+    )
+  )) as BeamPool[];
+  const memberProfiles = await getFcProfile(allUniqueFIDs);
+
+  context.log.info('Fetched profiles for FIDs: ' + allUniqueFIDs.join(', '));
+
+  if (!beamPools.every((pool) => pool !== undefined)) {
+    context.log.error(
+      `One or more BeamPools not found on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+    );
+    return;
+  }
+
+  potentiallyExistingUsers.forEach((user, index) => {
+    if (!user) {
+      const fid = allUniqueFIDs[index];
+      context.User.set({
+        id: _key.user({ fid }),
+        fid,
+        profile_id: _key.profile({ fid }),
+      });
+      // implicitly, the UserAccount must exist for this fid since it's in the routing
+      // and any outgoing member must have an account + pool to cause this event
+      const address = fullRouting.find((tx) => tx.fidInco === fid)?.address;
+
+      if (address) {
+        context.UserAccount.set({
+          id: _key.userAccount({ chainId: event.chainId, address }),
+          chainId: event.chainId,
+          address,
+          user_id: _key.user({ fid }),
+        });
+      }
+    }
+  });
+  fullRouting.forEach((tx, index) => {
+    const beam = potentiallyExistingBeams[index];
+    const beamPool = beamPools[index];
+    const allNewRecipientsOfPool = fullRouting
+      .filter((t) => t.poolAddress === tx.poolAddress)
+      .map((t) => t.address);
+    if (!beam) {
+      const newUnits =
+        action === Action.Update
+          ? tx.units
+          : action === Action.Increase
+            ? tx.units
+            : 0n;
+      if (action === Action.Decrease) {
+        context.log.error(
+          `Cannot decrease units for non-existing Beam for poolAddress: ${tx.poolAddress} and address: ${tx.address} on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+        );
+        return;
+      }
+      context.Beam.set({
+        id: _key.beam({
+          poolAddress: tx.poolAddress,
+          to: tx.address,
+        }),
+        chainId: event.chainId,
+        from_id: _key.user({ fid: tx.fidOutgo }),
+        to_id: _key.user({ fid: tx.fidInco }),
+        beamPool_id: _key.beamPool({
+          poolAddress: tx.poolAddress,
+        }),
+        recipientAccount_id: _key.userAccount({
+          chainId: event.chainId,
+          address: tx.address,
+        }),
+        units: newUnits,
+        isReceiverConnected: false,
+        lastUpdated: event.block.timestamp,
+        beamR_id: _key.beamR({
+          chainId: event.chainId,
+          address: event.srcAddress,
+        }),
+      });
+    } else {
+      if (action === Action.Decrease && beam.units < tx.units) {
+        context.log.error(
+          `Cannot decrease more units than existing for Beam for poolAddress: ${tx.poolAddress} and address: ${tx.address} on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+        );
+        return;
+      }
+      const newUnits =
+        action === Action.Update
+          ? tx.units
+          : action === Action.Increase
+            ? beam.units + tx.units
+            : beam.units - tx.units;
+      context.Beam.set({
+        ...beam,
+        units: newUnits,
+        lastUpdated: event.block.timestamp,
+      });
+    }
+    if (action === Action.Decrease && beamPool.totalUnits < tx.units) {
+      context.log.error(
+        `Cannot decrease more units than existing totalUnits for BeamPool for poolAddress: ${tx.poolAddress} on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      );
+      return;
+    }
+    context.BeamPool.set({
+      ...beamPool,
+      totalUnits:
+        action === Action.Update
+          ? beamPool.totalUnits -
+            (potentiallyExistingBeams[index]?.units || 0n) +
+            tx.units
+          : action === Action.Increase
+            ? beamPool.totalUnits + tx.units
+            : beamPool.totalUnits - tx.units,
+      lastUpdated: event.block.timestamp,
+      // We fetched all recipients at the same time, including duplicates, so we need to reset final values here
+      allRecipients: [beamPool.allRecipients, ...allNewRecipientsOfPool].flat(),
+      beamCount: beamPool.beamCount + allNewRecipientsOfPool.length,
+    });
+  });
+  //
+
+  memberProfiles.forEach((profile) => {
+    if (profile) {
+      context.Profile.set({
+        id: _key.profile({ fid: profile.fid }),
+        user_id: _key.user({ fid: profile.fid }),
+        display_name: profile.display_name,
+        username: profile.username,
+        pfp_url: profile.pfp_url,
+      });
+    }
+  });
+  context.TX.set(tx);
+});
+//
