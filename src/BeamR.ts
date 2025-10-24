@@ -584,6 +584,7 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
       beamCount: beamPool.beamCount + allNewRecipientsOfPool.length,
     });
   });
+  //
 
   memberProfiles.forEach((profile) => {
     if (profile) {
