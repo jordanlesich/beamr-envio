@@ -28,9 +28,7 @@ export const poolMetadataSchema = z.object({
     .optional(),
   castHash: z.string().optional(),
   instructions: z.string().optional(),
-  fidRouting: z.array(
-    z.tuple([z.number().int().positive(), z.number().int().positive()])
-  ),
+  receiptKeys: z.array(z.string()),
 });
 
 export const unitAdjustmentSchema = z.object({
