@@ -23,6 +23,7 @@ import {
 import { safeJSONParse } from './utils/common';
 import { zeroAddress } from 'viem';
 import { getFcProfile } from './effects/getFcProfile';
+import { decodeReceiptKey } from './utils/keys';
 
 //
 BeamR.Initialized.handler(async ({ event, context }) => {
@@ -104,8 +105,38 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     return;
   }
 
-  const { creatorFID, poolType, name, description, fidRouting } =
+  const { creatorFID, poolType, name, description, receiptKeys } =
     validated.data;
+
+  const fidRouting = receiptKeys.map((key) => {
+    if (!key.includes('tip_start')) {
+      context.log.error(
+        `Invalid receipt key for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      );
+      return;
+    }
+
+    const { senderFID, receiverFID } = decodeReceiptKey('start', key);
+    //
+
+    if (
+      !receiverFID ||
+      !senderFID ||
+      typeof receiverFID !== 'number' ||
+      typeof senderFID !== 'number'
+    ) {
+      context.log.error(
+        `Failed to decode receipt key for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}
+        
+         key: ${key}
+
+        `
+      );
+      return;
+    }
+
+    return [senderFID, receiverFID];
+  }) as [number, number][];
 
   if (fidRouting.length !== event.params.members.length) {
     context.log.error(
