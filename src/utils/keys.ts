@@ -51,7 +51,7 @@ export const decodeReceiptKey = (
   receiptKey: string
 ) => {
   if (receiptType === 'start') {
-    const [, senderFID, receiverFID] = receiptKey.split('_');
+    const [, , senderFID, receiverFID] = receiptKey.split('_');
     return {
       senderFID: Number(senderFID),
       receiverFID: Number(receiverFID),
@@ -62,7 +62,7 @@ export const decodeReceiptKey = (
     receiptType === 'recast' ||
     receiptType === 'comment'
   ) {
-    const [, senderFID, receiverFID, castHash] = receiptKey.split('_');
+    const [, , senderFID, receiverFID, castHash] = receiptKey.split('_');
     return {
       senderFID: Number(senderFID),
       receiverFID: Number(receiverFID),
@@ -70,7 +70,7 @@ export const decodeReceiptKey = (
     };
   }
   if (receiptType === 'follow') {
-    const [, senderFID, receiverFID] = receiptKey.split('_');
+    const [, , senderFID, receiverFID] = receiptKey.split('_');
     return {
       senderFID: Number(senderFID),
       receiverFID: Number(receiverFID),

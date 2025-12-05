@@ -117,6 +117,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     }
 
     const { senderFID, receiverFID } = decodeReceiptKey('start', key);
+    //
 
     if (
       !receiverFID ||
@@ -125,7 +126,11 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
       typeof senderFID !== 'number'
     ) {
       context.log.error(
-        `Failed to decode receipt key for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+        `Failed to decode receipt key for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}
+        
+         key: ${key}
+
+        `
       );
       return;
     }
