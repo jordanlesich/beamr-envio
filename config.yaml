@@ -32,7 +32,7 @@ networks:
     contracts:
       - name: BeamR
         address:
-        - 0xaA44dC224415459f3b026e66047adad912EfEC69
+        - 0x74A7b2e23D690467E26E86220B9B5b081E5282cb
       - name: GDA
         address:
         - 0x53F4f44C813Dc380182d0b2b67fe5832A12B97f8  

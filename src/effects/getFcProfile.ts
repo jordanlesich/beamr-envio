@@ -37,9 +37,20 @@ async function readCache(): Promise<Map<number, Profile>> {
 async function writeCache(cache: Map<number, Profile>) {
   const header = 'id\toutput\n';
   const body = Array.from(cache.entries())
-    .map(([id, profile]) => `${id}\t${JSON.stringify(profile)}`)
+    .map(([id, profile]) => {
+      const json = JSON.stringify(profile);
+
+      const postgresSafeJson = json.replace(/\\/g, '\\\\');
+
+      return `${id}\t${postgresSafeJson}`;
+    })
     .join('\n');
-  await fs.writeFile(CACHE_PATH, header + body, 'utf8');
+
+  try {
+    await fs.writeFile(CACHE_PATH, header + body, 'utf8');
+  } catch (err) {
+    console.error('Failed to write Farcaster profile cache:', err);
+  }
 }
 
 export const getFcProfile =
