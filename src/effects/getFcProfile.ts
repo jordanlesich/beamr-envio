@@ -5,7 +5,7 @@ import { Configuration, NeynarAPIClient } from '@neynar/nodejs-sdk';
 //
 const CACHE_PATH = path.resolve('../.envio/cache/getFcProfile.tsv');
 
-type Profile = {
+export type RawProfile = {
   fid: number;
   display_name: string;
   username: string;
@@ -13,11 +13,11 @@ type Profile = {
   ttl: number;
 };
 
-async function readCache(): Promise<Map<number, Profile>> {
+async function readCache(): Promise<Map<number, RawProfile>> {
   try {
     const data = await fs.readFile(CACHE_PATH, 'utf8');
     const lines = data.trim().split('\n').slice(1); // skip header
-    const cache = new Map<number, Profile>();
+    const cache = new Map<number, RawProfile>();
 
     for (const line of lines) {
       const [fidStr, json] = line.split('\t');
@@ -34,7 +34,7 @@ async function readCache(): Promise<Map<number, Profile>> {
   }
 }
 
-async function writeCache(cache: Map<number, Profile>) {
+async function writeCache(cache: Map<number, RawProfile>) {
   const header = 'id\toutput\n';
   const body = Array.from(cache.entries())
     .map(([id, profile]) => {
@@ -82,7 +82,7 @@ export const getFcProfile =
     const cache = await readCache();
     const now = Date.now();
 
-    const results: Profile[] = [];
+    const results: RawProfile[] = [];
     const missingFids: number[] = [];
 
     for (const fid of fids) {
@@ -98,7 +98,7 @@ export const getFcProfile =
       try {
         const response = await client.fetchBulkUsers({ fids: missingFids });
         for (const user of response.users || []) {
-          const profile: Profile = {
+          const profile: RawProfile = {
             fid: user.fid,
             display_name: user.display_name || user.username,
             username: user.username,

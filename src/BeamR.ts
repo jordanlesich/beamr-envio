@@ -13,6 +13,8 @@ import {
   BeamrGlobal,
   PoolMetadata,
   Role,
+  User,
+  UserAccount,
 } from 'generated/src/Types.gen';
 import {
   Action,
@@ -22,8 +24,9 @@ import {
 } from './validation/poolMetadata';
 import { safeJSONParse } from './utils/common';
 import { zeroAddress } from 'viem';
-import { getFcProfile } from './effects/getFcProfile';
+// import { getFcProfile } from './effects/getFcProfile';
 import { decodeReceiptKey } from './utils/keys';
+import { HandlerContext } from 'generated/src/Types';
 
 //
 BeamR.Initialized.handler(async ({ event, context }) => {
@@ -153,10 +156,10 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     };
   });
 
-  const [creatorProfile, ...memberProfiles] = await getFcProfile([
-    creatorFID,
-    ...membersData.map((m) => m.fid),
-  ]);
+  // const [creatorProfile, ...memberProfiles] = await getFcProfile([
+  //   creatorFID,
+  //   ...membersData.map((m) => m.fid),
+  // ]);
 
   // await context.effect(
   //   getFcProfile,
@@ -222,18 +225,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   context.User.set({
     id: _key.user({ fid: creatorFID }),
     fid: creatorFID,
-    profile_id: _key.profile({ fid: creatorFID }),
   });
-
-  if (creatorProfile) {
-    context.Profile.set({
-      id: _key.profile({ fid: creatorFID }),
-      user_id: _key.user({ fid: creatorFID }),
-      display_name: creatorProfile.display_name,
-      username: creatorProfile.username,
-      pfp_url: creatorProfile.pfp_url,
-    });
-  }
 
   context.UserAccount.set({
     id: _key.userAccount({
@@ -254,20 +246,8 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     context.User.set({
       id: _key.user({ fid: memberData.fid }),
       fid: memberData.fid,
-      profile_id: _key.profile({ fid: memberData.fid }),
+      // profile_id: _key.profile({ fid: memberData.fid }),
     });
-
-    const memberProfile = memberProfiles[index];
-
-    if (memberProfile) {
-      context.Profile.set({
-        id: _key.profile({ fid: memberData.fid }),
-        user_id: _key.user({ fid: memberData.fid }),
-        display_name: memberProfile.display_name,
-        username: memberProfile.username,
-        pfp_url: memberProfile.pfp_url,
-      });
-    }
 
     context.UserAccount.set({
       id: _key.userAccount({
@@ -418,7 +398,106 @@ BeamR.RoleRevoked.handler(async ({ event, context }) => {
   context.TX.set(tx);
 });
 
+const consolidateOrders = async ({
+  members,
+  fidRoutes,
+  poolAddresses,
+  context,
+  chainId,
+}: {
+  chainId: number;
+  members: [string, bigint][];
+  fidRoutes: [number, number][];
+  poolAddresses: string[];
+  context: HandlerContext;
+}) => {
+  const rawOrders = members.map((member, index) => {
+    return {
+      poolAddress: poolAddresses[index],
+      address: member[0],
+      senderFid: fidRoutes[index][0],
+      receiverFid: fidRoutes[index][1],
+      units: member[1],
+    };
+  });
+
+  const consolidatedPoolAddress = [...new Set(poolAddresses)];
+
+  const senders = [...new Set(rawOrders.map((order) => order.senderFid))];
+  const receivers = [...new Set(rawOrders.map((order) => order.receiverFid))];
+  const receiverAddress = [...new Set(rawOrders.map((order) => order.address))];
+  const fids = [...new Set([...senders, ...receivers])];
+
+  const poolResult = await Promise.all(
+    consolidatedPoolAddress.map((poolAddress) =>
+      context.BeamPool.get(_key.beamPool({ poolAddress }))
+    )
+  );
+
+  if (!poolResult.every((pool) => pool !== undefined)) {
+    context.log.error(
+      `One or more BeamPools not found during order consolidation`
+    );
+    return;
+  }
+
+  const potentialUsers = await Promise.all(
+    fids.map((fid) => context.User.get(_key.user({ fid })))
+  );
+
+  const potentialAccounts = await Promise.all(
+    receiverAddress.map((address) =>
+      context.UserAccount.get(
+        _key.userAccount({ chainId, address }) // assuming chainId 1 for consolidation
+      )
+    )
+  );
+
+  let pools: Record<string, BeamPool> = {};
+  let users: Record<number, User> = {};
+  let accounts: Record<string, UserAccount> = {};
+  let missingUsers: number[] = [];
+  let missingAccounts: {
+    address: string;
+    fid: number;
+  }[] = [];
+
+  poolResult.forEach((pool, index) => {
+    pools[consolidatedPoolAddress[index]] = pool;
+  });
+
+  potentialUsers.forEach((user, index) => {
+    if (user) {
+      users[user.fid] = user;
+    } else {
+      missingUsers.push(fids[index]);
+    }
+  });
+
+  potentialAccounts.forEach((account, index) => {
+    if (account) {
+      accounts[account.address] = account;
+    } else {
+      const order = rawOrders.find(
+        (order) => order.address === receiverAddress[index]
+      );
+      if (!order) {
+        context.log.error(
+          `Failed to find order for missing account with address: ${receiverAddress[index]}`
+        );
+        return;
+      }
+
+      missingAccounts.push({
+        address: order.address,
+        fid: order.receiverFid,
+      });
+    }
+  });
+};
+
 BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
+  //
   context.log.info(
     `Processing MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
   );
@@ -462,7 +541,10 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     );
     return;
   }
-  if (members.length !== poolAddresses.length) {
+  if (
+    members.length !== poolAddresses.length ||
+    fidRouting.length !== poolAddresses.length
+  ) {
     context.log.error(
       `Mismatch between members length and poolAddresses length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
     );
@@ -470,7 +552,6 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
   }
   const fullRouting = event.params.members.map((member, index) => {
     return {
-      action: action,
       poolAddress: poolAddresses[index],
       address: member[0],
       fidOutgo: fidRouting[index][0],
@@ -499,7 +580,6 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
       context.BeamPool.get(_key.beamPool({ poolAddress: tx.poolAddress }))
     )
   )) as BeamPool[];
-  const memberProfiles = await getFcProfile(allUniqueFIDs);
 
   context.log.info('Fetched profiles for FIDs: ' + allUniqueFIDs.join(', '));
 
@@ -516,7 +596,6 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
       context.User.set({
         id: _key.user({ fid }),
         fid,
-        profile_id: _key.profile({ fid }),
       });
       // implicitly, the UserAccount must exist for this fid since it's in the routing
       // and any outgoing member must have an account + pool to cause this event
@@ -615,19 +694,7 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
       beamCount: beamPool.beamCount + allNewRecipientsOfPool.length,
     });
   });
-  //
 
-  memberProfiles.forEach((profile) => {
-    if (profile) {
-      context.Profile.set({
-        id: _key.profile({ fid: profile.fid }),
-        user_id: _key.user({ fid: profile.fid }),
-        display_name: profile.display_name,
-        username: profile.username,
-        pfp_url: profile.pfp_url,
-      });
-    }
-  });
   context.TX.set(tx);
 });
 //
