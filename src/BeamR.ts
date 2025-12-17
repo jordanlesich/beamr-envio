@@ -9,6 +9,7 @@ import {
 } from 'generated';
 import { _key, createTx } from './utils/sync';
 import {
+  Beam,
   BeamPool,
   BeamrGlobal,
   PoolMetadata,
@@ -391,6 +392,8 @@ const consolidateOrders = async ({
   context,
   chainId,
   action,
+  timestamp,
+  srcAddress,
 }: {
   chainId: number;
   members: [string, bigint][];
@@ -398,187 +401,162 @@ const consolidateOrders = async ({
   poolAddresses: string[];
   context: HandlerContext;
   action: Action;
+  timestamp: number;
+  srcAddress: string;
 }) => {
-  const rawOrders = members.map((member, index) => {
-    return {
-      poolAddress: poolAddresses[index],
-      address: member[0],
-      senderFid: fidRoutes[index][0],
-      receiverFid: fidRoutes[index][1],
-      units: member[1],
-    };
+  // 1. Map Inputs to Deterministic IDs & Structures
+  const rawOrders = members.map((member, i) => ({
+    poolAddress: poolAddresses[i],
+    address: member[0],
+    amount: member[1],
+    senderFid: fidRoutes[i][0],
+    receiverFid: fidRoutes[i][1],
+    beamId: _key.beam({ poolAddress: poolAddresses[i], to: member[0] }),
+    poolId: _key.beamPool({ poolAddress: poolAddresses[i] }),
+    userId: _key.user({ fid: fidRoutes[i][1] }),
+    accountId: _key.userAccount({ chainId, address: member[0] }),
+  }));
+
+  // Deduplicate IDs
+  const uniqueBeamIds = [...new Set(rawOrders.map((o) => o.beamId))];
+  const uniquePoolIds = [...new Set(rawOrders.map((o) => o.poolId))];
+  const uniqueFids = [
+    ...new Set(rawOrders.flatMap((o) => [o.senderFid, o.receiverFid])),
+  ];
+  const uniqueAccountIds = [...new Set(rawOrders.map((o) => o.accountId))];
+
+  // 2. Batch Read: Fetch EVERYTHING in parallel using standard .get()
+  const [existingBeams, existingPools, existingUsers, existingAccounts] =
+    await Promise.all([
+      Promise.all(uniqueBeamIds.map((id) => context.Beam.get(id))),
+      Promise.all(uniquePoolIds.map((id) => context.BeamPool.get(id))),
+      Promise.all(
+        uniqueFids.map((fid) => context.User.get(_key.user({ fid })))
+      ),
+      Promise.all(uniqueAccountIds.map((id) => context.UserAccount.get(id))),
+    ]);
+
+  // Create Lookup Maps
+  const beamMap = new Map();
+  existingBeams.forEach((b) => {
+    if (b) beamMap.set(b.id, b);
   });
 
-  const consolidatedPoolAddress = [...new Set(poolAddresses)];
+  const poolMap = new Map();
+  existingPools.forEach((p) => {
+    if (p) poolMap.set(p.id, p);
+  });
 
-  const senders = [...new Set(rawOrders.map((order) => order.senderFid))];
-  const receivers = [...new Set(rawOrders.map((order) => order.receiverFid))];
-  const receiverAddress = [...new Set(rawOrders.map((order) => order.address))];
-  const fids = [...new Set([...senders, ...receivers])];
+  const userMap = new Map();
+  existingUsers.forEach((u) => {
+    if (u) userMap.set(u.fid, u);
+  });
 
-  const poolPromises = Promise.all(
-    consolidatedPoolAddress.map((poolAddress) =>
-      context.BeamPool.get(_key.beamPool({ poolAddress }))
-    )
-  );
+  const accountMap = new Map();
+  existingAccounts.forEach((a) => {
+    if (a) accountMap.set(a.id, a);
+  });
 
-  const potentialUserPromises = Promise.all(
-    fids.map((fid) => context.User.get(_key.user({ fid })))
-  );
+  // 3. Prepare Writes containers
+  const beamsToSet: Beam[] = [];
+  const poolsToSet: Map<string, BeamPool> = new Map();
+  const usersToSet: User[] = [];
+  const accountsToSet: UserAccount[] = [];
 
-  const potentialAccountPromises = Promise.all(
-    receiverAddress.map((address) =>
-      context.UserAccount.get(
-        _key.userAccount({ chainId, address }) // assuming chainId 1 for consolidation
-      )
-    )
-  );
+  // 4. Calculate Logic
+  for (const order of rawOrders) {
+    // --- Entity Checks ---
+    if (!userMap.has(order.receiverFid)) {
+      const newUser = { id: order.userId, fid: order.receiverFid };
+      usersToSet.push(newUser);
+      userMap.set(order.receiverFid, newUser); // Update map so we don't add duplicates
+    }
 
-  const [poolResult, potentialUsers, potentialAccounts] = await Promise.all([
-    poolPromises,
-    potentialUserPromises,
-    potentialAccountPromises,
-  ]);
+    // Check sender as well (just in case)
+    if (!userMap.has(order.senderFid)) {
+      const newSender = {
+        id: _key.user({ fid: order.senderFid }),
+        fid: order.senderFid,
+      };
+      usersToSet.push(newSender);
+      userMap.set(order.senderFid, newSender);
+    }
 
-  if (!poolResult.every((pool) => pool !== undefined)) {
-    throw new Error(
-      'One or more BeamPools not found during order consolidation'
-    );
+    if (!accountMap.has(order.accountId)) {
+      const newAccount = {
+        id: order.accountId,
+        chainId,
+        address: order.address,
+        user_id: order.userId,
+      };
+      accountsToSet.push(newAccount);
+      accountMap.set(order.accountId, newAccount);
+    }
+
+    const previousBeam = beamMap.get(order.beamId);
+
+    const pool = poolsToSet.get(order.poolId) || poolMap.get(order.poolId);
+
+    if (!pool) {
+      throw new Error(`Pool not found for address ${order.poolAddress}`);
+    }
+
+    const oldUnits = previousBeam ? previousBeam.units : 0n;
+    let newUnits = 0n;
+
+    if (action === Action.Update) {
+      newUnits = order.amount;
+    } else if (action === Action.Increase) {
+      newUnits = oldUnits + order.amount;
+    } else if (action === Action.Decrease) {
+      newUnits = oldUnits - order.amount;
+      if (newUnits < 0n) newUnits = 0n;
+    }
+
+    // Calculate Delta
+    const unitDelta = newUnits - oldUnits;
+
+    // Calculate Beam Count Delta
+    let beamCountDelta = 0;
+    if (oldUnits === 0n && newUnits > 0n) beamCountDelta = 1;
+    else if (oldUnits > 0n && newUnits === 0n) beamCountDelta = -1;
+
+    // --- Prepare Beam Object ---
+    const updatedBeam: Beam = {
+      ...(previousBeam || {}),
+      id: order.beamId,
+      chainId,
+      units: newUnits,
+      lastUpdated: timestamp,
+      // Only set these if it's a NEW beam
+      ...(!previousBeam && {
+        from_id: _key.user({ fid: order.senderFid }),
+        to_id: _key.user({ fid: order.receiverFid }),
+        beamPool_id: order.poolId,
+        recipientAccount_id: order.accountId,
+        isReceiverConnected: false,
+        beamR_id: _key.beamR({ chainId, address: srcAddress }),
+      }),
+    };
+
+    beamsToSet.push(updatedBeam);
+    beamMap.set(order.beamId, updatedBeam); // Update map for next iteration
+
+    // --- Update Pool Object ---
+    const updatedPool = {
+      ...pool,
+      totalUnits: (pool.totalUnits || 0n) + unitDelta,
+      beamCount: (pool.beamCount || 0) + beamCountDelta,
+      lastUpdated: timestamp,
+    };
+    poolsToSet.set(order.poolId, updatedPool);
   }
 
-  let pools: Record<string, BeamPool> = {};
-  let users: Record<number, User> = {};
-  let accounts: Record<string, UserAccount> = {};
-  let missingUsers: number[] = [];
-  let missingAccounts: {
-    address: string;
-    fid: number;
-  }[] = [];
-
-  poolResult.forEach((pool, index) => {
-    pools[consolidatedPoolAddress[index]] = pool;
-  });
-
-  potentialUsers.forEach((user, index) => {
-    if (user) {
-      users[user.fid] = user;
-    } else {
-      missingUsers.push(fids[index]);
-    }
-  });
-
-  potentialAccounts.forEach((account, index) => {
-    if (account) {
-      accounts[account.address] = account;
-    } else {
-      const order = rawOrders.find(
-        (order) => order.address === receiverAddress[index]
-      );
-      if (!order) {
-        throw new Error('Inconsistent state during account consolidation');
-      }
-
-      missingAccounts.push({
-        address: order.address,
-        fid: order.receiverFid,
-      });
-    }
-  });
-
-  let poolTotalUnits: Record<string, bigint> = {};
-  let poolTotalBeams: Record<string, number> = {};
-
-  const consolidated = rawOrders.reduce(
-    (acc, curr) => {
-      const beamId = _key.beam({
-        poolAddress: curr.poolAddress,
-        to: curr.address,
-      });
-
-      const order = acc[beamId];
-      const existingUnits = order ? order.units : 0n;
-      const pool = pools[curr.poolAddress];
-
-      const hasRecordedPoolValue =
-        poolTotalUnits[curr.poolAddress] !== undefined;
-
-      const hasRecordedTotalBeams =
-        poolTotalBeams[curr.poolAddress] !== undefined;
-
-      if (!hasRecordedPoolValue) {
-        poolTotalUnits[curr.poolAddress] = pool.totalUnits;
-      }
-      if (!hasRecordedTotalBeams) {
-        poolTotalBeams[curr.poolAddress] = pool.beamCount;
-      }
-
-      const prevUnits = order ? order.units : 0n;
-
-      if (action === Action.Update) {
-        poolTotalUnits[curr.poolAddress] = curr.units;
-
-        if (prevUnits === 0n && curr.units > 0n) {
-          poolTotalBeams[curr.poolAddress] += 1;
-        }
-      } else if (action === Action.Increase) {
-        poolTotalUnits[curr.poolAddress] =
-          (poolTotalUnits[curr.poolAddress] || 0n) + curr.units;
-
-        if (prevUnits === 0n && curr.units > 0n) {
-          poolTotalBeams[curr.poolAddress] += 1;
-        }
-      } else {
-        const currentBal = poolTotalUnits[curr.poolAddress] || 0n;
-
-        if (currentBal - curr.units < 0n) {
-          console.warn(
-            `Warning: Pool total units for pool ${curr.poolAddress} going negative during consolidation. Setting to 0.`
-          );
-          poolTotalUnits[curr.poolAddress] = 0n;
-        }
-
-        const newBal = currentBal - curr.units;
-        poolTotalUnits[curr.poolAddress] = newBal;
-
-        if (newBal === 0n) {
-          poolTotalBeams[curr.poolAddress] =
-            poolTotalBeams[curr.poolAddress] - 1;
-        }
-      }
-
-      return {
-        [beamId]: {
-          poolAddress: curr.poolAddress,
-          address: curr.address,
-          fidOutgo: curr.senderFid,
-          fidInco: curr.receiverFid,
-          units: existingUnits + curr.units,
-        },
-      };
-    },
-    {} as Record<
-      string,
-      {
-        poolAddress: string;
-        address: string;
-        fidOutgo: number;
-        fidInco: number;
-        units: bigint;
-      }
-    >
-  );
-
   return {
-    consolidated,
-    orders: Object.values(consolidated),
-    pools: Object.values(pools),
-    poolTotalUnits,
-    poolTotalBeams,
-    users,
-    accounts,
-    missingUsers,
-    missingAccounts,
-    fids,
+    usersToSet,
+    accountsToSet,
+    beamsToSet,
+    poolsToSet: Array.from(poolsToSet.values()),
   };
 };
 
@@ -598,6 +576,7 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     context.log.error(
       `Invalid action type for MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
     );
+    return;
   }
   const action = Number(actionParam) as Action;
   if (metadata[0] !== ONCHAIN_EVENT) {
@@ -636,96 +615,36 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     );
     return;
   }
-  const {
-    orders,
-    missingUsers,
-    missingAccounts,
-    pools,
-    poolTotalUnits,
-    poolTotalBeams,
-  } = await consolidateOrders({
-    members,
-    fidRoutes: fidRouting,
-    poolAddresses,
-    context,
-    chainId: event.chainId,
-    action,
-  });
-
-  const missingUsersPromises = missingUsers.map((fid) =>
-    context.User.set({
-      id: _key.user({ fid }),
-      fid,
-    })
-  );
-
-  const missingAccountsPromises = missingAccounts.map(({ address, fid }) =>
-    context.UserAccount.set({
-      id: _key.userAccount({ chainId: event.chainId, address }),
+  const { usersToSet, accountsToSet, beamsToSet, poolsToSet } =
+    await consolidateOrders({
+      members,
+      fidRoutes: fidRouting,
+      poolAddresses,
+      context,
       chainId: event.chainId,
-      address,
-      user_id: _key.user({ fid }),
-    })
-  );
-
-  await Promise.all([...missingUsersPromises, ...missingAccountsPromises]);
-
-  const potentiallyExistingBeams = await Promise.all(
-    orders.map((order) =>
-      context.Beam.get(
-        _key.beam({
-          poolAddress: order.poolAddress,
-          to: order.address,
-        })
-      )
-    )
-  );
-
-  orders.forEach((order, index) => {
-    const beam = potentiallyExistingBeams[index];
-
-    if (beam) {
-      context.Beam.set({
-        ...beam,
-        units: order.units,
-        lastUpdated: event.block.timestamp,
-      });
-    } else {
-      context.Beam.set({
-        id: _key.beam({
-          poolAddress: order.poolAddress,
-          to: order.address,
-        }),
-        chainId: event.chainId,
-        from_id: _key.user({ fid: order.fidOutgo }),
-        to_id: _key.user({ fid: order.fidInco }),
-        beamPool_id: _key.beamPool({
-          poolAddress: order.poolAddress,
-        }),
-        recipientAccount_id: _key.userAccount({
-          chainId: event.chainId,
-          address: order.address,
-        }),
-        units: order.units,
-        isReceiverConnected: false,
-        lastUpdated: event.block.timestamp,
-        beamR_id: _key.beamR({
-          chainId: event.chainId,
-          address: event.srcAddress,
-        }),
-      });
-    }
-  });
-
-  pools.forEach((beamPool) => {
-    context.BeamPool.set({
-      ...beamPool,
-      totalUnits: poolTotalUnits[beamPool.id],
-      lastUpdated: event.block.timestamp,
-      beamCount: poolTotalBeams[beamPool.id],
+      action,
+      timestamp: event.block.timestamp,
+      srcAddress: event.srcAddress, // Passed here
     });
-  });
 
+  for (const user of usersToSet) {
+    context.User.set(user);
+  }
+
+  for (const account of accountsToSet) {
+    context.UserAccount.set(account);
+  }
+
+  // Set Beams
+  for (const beam of beamsToSet) {
+    context.Beam.set(beam);
+  }
+
+  // Set Pools (Totals)
+  for (const pool of poolsToSet) {
+    context.BeamPool.set(pool);
+  }
+
+  // Set Transaction
   context.TX.set(tx);
 });
-//
