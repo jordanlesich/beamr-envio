@@ -9,10 +9,13 @@ import {
 } from 'generated';
 import { _key, createTx } from './utils/sync';
 import {
+  Beam,
   BeamPool,
   BeamrGlobal,
   PoolMetadata,
   Role,
+  User,
+  UserAccount,
 } from 'generated/src/Types.gen';
 import {
   Action,
@@ -22,10 +25,9 @@ import {
 } from './validation/poolMetadata';
 import { safeJSONParse } from './utils/common';
 import { zeroAddress } from 'viem';
-import { getFcProfile } from './effects/getFcProfile';
 import { decodeReceiptKey } from './utils/keys';
+import { HandlerContext } from 'generated/src/Types';
 
-//
 BeamR.Initialized.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
@@ -153,17 +155,6 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     };
   });
 
-  const [creatorProfile, ...memberProfiles] = await getFcProfile([
-    creatorFID,
-    ...membersData.map((m) => m.fid),
-  ]);
-
-  // await context.effect(
-  //   getFcProfile,
-  //   [creatorFID, ...membersData.map((m) => m.fid)]
-  // );
-
-  //
   const metadata: PoolMetadata = {
     id: _key.poolMetadata({
       poolAddress: event.params.pool,
@@ -216,24 +207,12 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     lastDistroUpdate_id: undefined,
     lastUpdated: event.block.timestamp,
     metadata_id: event.params.pool,
-    allRecipients: membersData.map((member) => member.address),
   };
 
   context.User.set({
     id: _key.user({ fid: creatorFID }),
     fid: creatorFID,
-    profile_id: _key.profile({ fid: creatorFID }),
   });
-
-  if (creatorProfile) {
-    context.Profile.set({
-      id: _key.profile({ fid: creatorFID }),
-      user_id: _key.user({ fid: creatorFID }),
-      display_name: creatorProfile.display_name,
-      username: creatorProfile.username,
-      pfp_url: creatorProfile.pfp_url,
-    });
-  }
 
   context.UserAccount.set({
     id: _key.userAccount({
@@ -254,20 +233,8 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     context.User.set({
       id: _key.user({ fid: memberData.fid }),
       fid: memberData.fid,
-      profile_id: _key.profile({ fid: memberData.fid }),
+      // profile_id: _key.profile({ fid: memberData.fid }),
     });
-
-    const memberProfile = memberProfiles[index];
-
-    if (memberProfile) {
-      context.Profile.set({
-        id: _key.profile({ fid: memberData.fid }),
-        user_id: _key.user({ fid: memberData.fid }),
-        display_name: memberProfile.display_name,
-        username: memberProfile.username,
-        pfp_url: memberProfile.pfp_url,
-      });
-    }
 
     context.UserAccount.set({
       id: _key.userAccount({
@@ -418,10 +385,182 @@ BeamR.RoleRevoked.handler(async ({ event, context }) => {
   context.TX.set(tx);
 });
 
+const consolidateOrders = async ({
+  members,
+  fidRoutes,
+  poolAddresses,
+  context,
+  chainId,
+  action,
+  timestamp,
+  srcAddress,
+}: {
+  chainId: number;
+  members: [string, bigint][];
+  fidRoutes: [number, number][];
+  poolAddresses: string[];
+  context: HandlerContext;
+  action: Action;
+  timestamp: number;
+  srcAddress: string;
+}) => {
+  // 1. Map Inputs to Deterministic IDs & Structures
+  const rawOrders = members.map((member, i) => ({
+    poolAddress: poolAddresses[i],
+    address: member[0],
+    amount: member[1],
+    senderFid: fidRoutes[i][0],
+    receiverFid: fidRoutes[i][1],
+    beamId: _key.beam({ poolAddress: poolAddresses[i], to: member[0] }),
+    poolId: _key.beamPool({ poolAddress: poolAddresses[i] }),
+    userId: _key.user({ fid: fidRoutes[i][1] }),
+    accountId: _key.userAccount({ chainId, address: member[0] }),
+  }));
+
+  // Deduplicate IDs
+  const uniqueBeamIds = [...new Set(rawOrders.map((o) => o.beamId))];
+  const uniquePoolIds = [...new Set(rawOrders.map((o) => o.poolId))];
+  const uniqueFids = [
+    ...new Set(rawOrders.flatMap((o) => [o.senderFid, o.receiverFid])),
+  ];
+  const uniqueAccountIds = [...new Set(rawOrders.map((o) => o.accountId))];
+
+  // 2. Batch Read: Fetch EVERYTHING in parallel using standard .get()
+  const [existingBeams, existingPools, existingUsers, existingAccounts] =
+    await Promise.all([
+      Promise.all(uniqueBeamIds.map((id) => context.Beam.get(id))),
+      Promise.all(uniquePoolIds.map((id) => context.BeamPool.get(id))),
+      Promise.all(
+        uniqueFids.map((fid) => context.User.get(_key.user({ fid })))
+      ),
+      Promise.all(uniqueAccountIds.map((id) => context.UserAccount.get(id))),
+    ]);
+
+  // Create Lookup Maps
+  const beamMap = new Map();
+  existingBeams.forEach((b) => {
+    if (b) beamMap.set(b.id, b);
+  });
+
+  const poolMap = new Map();
+  existingPools.forEach((p) => {
+    if (p) poolMap.set(p.id, p);
+  });
+
+  const userMap = new Map();
+  existingUsers.forEach((u) => {
+    if (u) userMap.set(u.fid, u);
+  });
+
+  const accountMap = new Map();
+  existingAccounts.forEach((a) => {
+    if (a) accountMap.set(a.id, a);
+  });
+
+  // 3. Prepare Writes containers
+  const beamsToSet: Beam[] = [];
+  const poolsToSet: Map<string, BeamPool> = new Map();
+  const usersToSet: User[] = [];
+  const accountsToSet: UserAccount[] = [];
+
+  // 4. Calculate Logic
+  for (const order of rawOrders) {
+    // --- Entity Checks ---
+    if (!userMap.has(order.receiverFid)) {
+      const newUser = { id: order.userId, fid: order.receiverFid };
+      usersToSet.push(newUser);
+      userMap.set(order.receiverFid, newUser); // Update map so we don't add duplicates
+    }
+
+    // Check sender as well (just in case)
+    if (!userMap.has(order.senderFid)) {
+      const newSender = {
+        id: _key.user({ fid: order.senderFid }),
+        fid: order.senderFid,
+      };
+      usersToSet.push(newSender);
+      userMap.set(order.senderFid, newSender);
+    }
+
+    if (!accountMap.has(order.accountId)) {
+      const newAccount = {
+        id: order.accountId,
+        chainId,
+        address: order.address,
+        user_id: order.userId,
+      };
+      accountsToSet.push(newAccount);
+      accountMap.set(order.accountId, newAccount);
+    }
+
+    const previousBeam = beamMap.get(order.beamId);
+
+    const pool = poolsToSet.get(order.poolId) || poolMap.get(order.poolId);
+
+    if (!pool) {
+      throw new Error(`Pool not found for address ${order.poolAddress}`);
+    }
+
+    const oldUnits = previousBeam ? previousBeam.units : 0n;
+    let newUnits = 0n;
+
+    if (action === Action.Update) {
+      newUnits = order.amount;
+    } else if (action === Action.Increase) {
+      newUnits = oldUnits + order.amount;
+    } else if (action === Action.Decrease) {
+      newUnits = oldUnits - order.amount;
+      if (newUnits < 0n) newUnits = 0n;
+    }
+
+    // Calculate Delta
+    const unitDelta = newUnits - oldUnits;
+
+    // Calculate Beam Count Delta
+    let beamCountDelta = 0;
+    if (oldUnits === 0n && newUnits > 0n) beamCountDelta = 1;
+    else if (oldUnits > 0n && newUnits === 0n) beamCountDelta = -1;
+
+    // --- Prepare Beam Object ---
+    const updatedBeam: Beam = {
+      ...(previousBeam || {}),
+      id: order.beamId,
+      chainId,
+      units: newUnits,
+      lastUpdated: timestamp,
+      // Only set these if it's a NEW beam
+      ...(!previousBeam && {
+        from_id: _key.user({ fid: order.senderFid }),
+        to_id: _key.user({ fid: order.receiverFid }),
+        beamPool_id: order.poolId,
+        recipientAccount_id: order.accountId,
+        isReceiverConnected: false,
+        beamR_id: _key.beamR({ chainId, address: srcAddress }),
+      }),
+    };
+
+    beamsToSet.push(updatedBeam);
+    beamMap.set(order.beamId, updatedBeam); // Update map for next iteration
+
+    // --- Update Pool Object ---
+    const updatedPool = {
+      ...pool,
+      totalUnits: (pool.totalUnits || 0n) + unitDelta,
+      beamCount: (pool.beamCount || 0) + beamCountDelta,
+      lastUpdated: timestamp,
+    };
+    poolsToSet.set(order.poolId, updatedPool);
+  }
+
+  return {
+    usersToSet,
+    accountsToSet,
+    beamsToSet,
+    poolsToSet: Array.from(poolsToSet.values()),
+  };
+};
+
 BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
-  context.log.info(
-    `Processing MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
-  );
   const tx = createTx(event, context, false);
   const {
     action: actionParam,
@@ -433,6 +572,7 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     context.log.error(
       `Invalid action type for MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
     );
+    return;
   }
   const action = Number(actionParam) as Action;
   if (metadata[0] !== ONCHAIN_EVENT) {
@@ -462,172 +602,45 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     );
     return;
   }
-  if (members.length !== poolAddresses.length) {
+  if (
+    members.length !== poolAddresses.length ||
+    fidRouting.length !== poolAddresses.length
+  ) {
     context.log.error(
       `Mismatch between members length and poolAddresses length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
     );
     return;
   }
-  const fullRouting = event.params.members.map((member, index) => {
-    return {
-      action: action,
-      poolAddress: poolAddresses[index],
-      address: member[0],
-      fidOutgo: fidRouting[index][0],
-      fidInco: fidRouting[index][1],
-      units: member[1],
-    };
-  });
-  const allUniqueFIDs = [
-    ...new Set(fullRouting.flatMap((tx) => [tx.fidInco, tx.fidOutgo])),
-  ];
-  const potentiallyExistingUsers = await Promise.all(
-    allUniqueFIDs.map((fid) => context.User.get(_key.user({ fid })))
-  );
-  const potentiallyExistingBeams = await Promise.all(
-    fullRouting.map((tx) =>
-      context.Beam.get(
-        _key.beam({
-          poolAddress: tx.poolAddress,
-          to: tx.address,
-        })
-      )
-    )
-  );
-  const beamPools = (await Promise.all(
-    fullRouting.map((tx) =>
-      context.BeamPool.get(_key.beamPool({ poolAddress: tx.poolAddress }))
-    )
-  )) as BeamPool[];
-  const memberProfiles = await getFcProfile(allUniqueFIDs);
+  const { usersToSet, accountsToSet, beamsToSet, poolsToSet } =
+    await consolidateOrders({
+      members,
+      fidRoutes: fidRouting,
+      poolAddresses,
+      context,
+      chainId: event.chainId,
+      action,
+      timestamp: event.block.timestamp,
+      srcAddress: event.srcAddress, // Passed here
+    });
 
-  context.log.info('Fetched profiles for FIDs: ' + allUniqueFIDs.join(', '));
-
-  if (!beamPools.every((pool) => pool !== undefined)) {
-    context.log.error(
-      `One or more BeamPools not found on chainId: ${event.chainId} at tx ${event.transaction.hash}`
-    );
-    return;
+  for (const user of usersToSet) {
+    context.User.set(user);
   }
 
-  potentiallyExistingUsers.forEach((user, index) => {
-    if (!user) {
-      const fid = allUniqueFIDs[index];
-      context.User.set({
-        id: _key.user({ fid }),
-        fid,
-        profile_id: _key.profile({ fid }),
-      });
-      // implicitly, the UserAccount must exist for this fid since it's in the routing
-      // and any outgoing member must have an account + pool to cause this event
-      const address = fullRouting.find((tx) => tx.fidInco === fid)?.address;
+  for (const account of accountsToSet) {
+    context.UserAccount.set(account);
+  }
 
-      if (address) {
-        context.UserAccount.set({
-          id: _key.userAccount({ chainId: event.chainId, address }),
-          chainId: event.chainId,
-          address,
-          user_id: _key.user({ fid }),
-        });
-      }
-    }
-  });
-  fullRouting.forEach((tx, index) => {
-    const beam = potentiallyExistingBeams[index];
-    const beamPool = beamPools[index];
-    const allNewRecipientsOfPool = fullRouting
-      .filter((t) => t.poolAddress === tx.poolAddress)
-      .map((t) => t.address);
-    if (!beam) {
-      const newUnits =
-        action === Action.Update
-          ? tx.units
-          : action === Action.Increase
-            ? tx.units
-            : 0n;
-      if (action === Action.Decrease) {
-        context.log.error(
-          `Cannot decrease units for non-existing Beam for poolAddress: ${tx.poolAddress} and address: ${tx.address} on chainId: ${event.chainId} at tx ${event.transaction.hash}`
-        );
-        return;
-      }
-      context.Beam.set({
-        id: _key.beam({
-          poolAddress: tx.poolAddress,
-          to: tx.address,
-        }),
-        chainId: event.chainId,
-        from_id: _key.user({ fid: tx.fidOutgo }),
-        to_id: _key.user({ fid: tx.fidInco }),
-        beamPool_id: _key.beamPool({
-          poolAddress: tx.poolAddress,
-        }),
-        recipientAccount_id: _key.userAccount({
-          chainId: event.chainId,
-          address: tx.address,
-        }),
-        units: newUnits,
-        isReceiverConnected: false,
-        lastUpdated: event.block.timestamp,
-        beamR_id: _key.beamR({
-          chainId: event.chainId,
-          address: event.srcAddress,
-        }),
-      });
-    } else {
-      if (action === Action.Decrease && beam.units < tx.units) {
-        context.log.error(
-          `Cannot decrease more units than existing for Beam for poolAddress: ${tx.poolAddress} and address: ${tx.address} on chainId: ${event.chainId} at tx ${event.transaction.hash}`
-        );
-        return;
-      }
-      const newUnits =
-        action === Action.Update
-          ? tx.units
-          : action === Action.Increase
-            ? beam.units + tx.units
-            : beam.units - tx.units;
-      context.Beam.set({
-        ...beam,
-        units: newUnits,
-        lastUpdated: event.block.timestamp,
-      });
-    }
-    if (action === Action.Decrease && beamPool.totalUnits < tx.units) {
-      context.log.error(
-        `Cannot decrease more units than existing totalUnits for BeamPool for poolAddress: ${tx.poolAddress} on chainId: ${event.chainId} at tx ${event.transaction.hash}`
-      );
-      return;
-    }
-    context.BeamPool.set({
-      ...beamPool,
-      totalUnits:
-        action === Action.Update
-          ? beamPool.totalUnits -
-            (potentiallyExistingBeams[index]?.units || 0n) +
-            tx.units
-          : action === Action.Increase
-            ? beamPool.totalUnits + tx.units
-            : beamPool.totalUnits - tx.units,
-      lastUpdated: event.block.timestamp,
-      // We fetched all recipients at the same time, including duplicates, so we need to reset final values here
-      allRecipients: [beamPool.allRecipients, ...allNewRecipientsOfPool].flat(),
-      beamCount: beamPool.beamCount + allNewRecipientsOfPool.length,
-    });
-  });
-  //
+  // Set Beams
+  for (const beam of beamsToSet) {
+    context.Beam.set(beam);
+  }
 
-  memberProfiles.forEach((profile) => {
-    if (profile) {
-      context.Profile.set({
-        id: _key.profile({ fid: profile.fid }),
-        user_id: _key.user({ fid: profile.fid }),
-        display_name: profile.display_name,
-        username: profile.username,
-        pfp_url: profile.pfp_url,
-      });
-    }
-  });
+  // Set Pools (Totals)
+  for (const pool of poolsToSet) {
+    context.BeamPool.set(pool);
+  }
+
+  // Set Transaction
   context.TX.set(tx);
 });
-//

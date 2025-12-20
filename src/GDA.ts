@@ -22,9 +22,12 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
     adjustmentFlowRecipient: event.params.adjustmentFlowRecipient,
   };
 
+  const active =
+    event.params.newTotalDistributionFlowRate === BigInt(0) ? false : true;
+
   context.BeamPool.set({
     ...beamPool,
-    active: true,
+    active,
     adjustmentFlowRate: event.params.adjustmentFlowRate,
     adjustmentMember: event.params.adjustmentFlowRecipient,
     lastDistroUpdate_id: distroUpdate.id,
@@ -58,6 +61,7 @@ GDA.PoolConnectionUpdated.handler(async ({ event, context }) => {
     );
     return;
   }
+  //
 
   context.Beam.set({
     ...beam,
