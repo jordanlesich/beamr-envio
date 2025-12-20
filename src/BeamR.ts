@@ -561,10 +561,6 @@ const consolidateOrders = async ({
 };
 
 BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
-  //
-  context.log.info(
-    `Processing MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
-  );
   const tx = createTx(event, context, false);
   const {
     action: actionParam,
