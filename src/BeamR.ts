@@ -28,7 +28,7 @@ import { zeroAddress } from 'viem';
 import { decodeReceiptKey } from './utils/keys';
 import { HandlerContext } from 'generated/src/Types';
 
-BeamR.Initialized.handler(async ({ event, context }) => {
+BeamR.BeamrInitialized.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
   const adminRole: Role = {
@@ -81,6 +81,8 @@ BeamR.PoolCreated.contractRegister(async ({ event, context }) => {
 
 BeamR.PoolCreated.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
+
+  const chainId = event.chainId;
 
   if (event.params.metadata[0] !== ONCHAIN_EVENT) {
     context.log.error(
@@ -188,7 +190,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
       chainId: event.chainId,
       address: event.srcAddress,
     }),
-    creator_id: _key.user({ fid: creatorFID }),
+    creator_id: _key.user({ fid: creatorFID, chainId }),
     creatorAccount_id: _key.userAccount({
       chainId: event.chainId,
       address: event.params.creator,
@@ -210,7 +212,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   };
 
   context.User.set({
-    id: _key.user({ fid: creatorFID }),
+    id: _key.user({ fid: creatorFID, chainId }),
     fid: creatorFID,
   });
 
@@ -221,7 +223,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     }),
     chainId: event.chainId,
     address: event.params.creator,
-    user_id: _key.user({ fid: creatorFID }),
+    user_id: _key.user({ fid: creatorFID, chainId }),
   });
 
   context.Role.set(poolAdminRole);
@@ -231,7 +233,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
 
   membersData.forEach(async (memberData, index) => {
     context.User.set({
-      id: _key.user({ fid: memberData.fid }),
+      id: _key.user({ fid: memberData.fid, chainId }),
       fid: memberData.fid,
       // profile_id: _key.profile({ fid: memberData.fid }),
     });
@@ -243,7 +245,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
       }),
       chainId: event.chainId,
       address: memberData.address,
-      user_id: _key.user({ fid: memberData.fid }),
+      user_id: _key.user({ fid: memberData.fid, chainId }),
     });
 
     context.Beam.set({
@@ -252,8 +254,8 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
         to: memberData.address,
       }),
       chainId: event.chainId,
-      from_id: _key.user({ fid: creatorFID }),
-      to_id: _key.user({ fid: memberData.fid }),
+      from_id: _key.user({ fid: creatorFID, chainId }),
+      to_id: _key.user({ fid: memberData.fid, chainId }),
       beamPool_id: _key.beamPool({
         poolAddress: event.params.pool,
       }),
@@ -413,7 +415,7 @@ const consolidateOrders = async ({
     receiverFid: fidRoutes[i][1],
     beamId: _key.beam({ poolAddress: poolAddresses[i], to: member[0] }),
     poolId: _key.beamPool({ poolAddress: poolAddresses[i] }),
-    userId: _key.user({ fid: fidRoutes[i][1] }),
+    userId: _key.user({ fid: fidRoutes[i][1], chainId }),
     accountId: _key.userAccount({ chainId, address: member[0] }),
   }));
 
@@ -431,7 +433,7 @@ const consolidateOrders = async ({
       Promise.all(uniqueBeamIds.map((id) => context.Beam.get(id))),
       Promise.all(uniquePoolIds.map((id) => context.BeamPool.get(id))),
       Promise.all(
-        uniqueFids.map((fid) => context.User.get(_key.user({ fid })))
+        uniqueFids.map((fid) => context.User.get(_key.user({ fid, chainId })))
       ),
       Promise.all(uniqueAccountIds.map((id) => context.UserAccount.get(id))),
     ]);
@@ -467,7 +469,10 @@ const consolidateOrders = async ({
   for (const order of rawOrders) {
     // --- Entity Checks ---
     if (!userMap.has(order.receiverFid)) {
-      const newUser = { id: order.userId, fid: order.receiverFid };
+      const newUser = {
+        id: order.userId,
+        fid: order.receiverFid,
+      };
       usersToSet.push(newUser);
       userMap.set(order.receiverFid, newUser); // Update map so we don't add duplicates
     }
@@ -475,7 +480,7 @@ const consolidateOrders = async ({
     // Check sender as well (just in case)
     if (!userMap.has(order.senderFid)) {
       const newSender = {
-        id: _key.user({ fid: order.senderFid }),
+        id: _key.user({ fid: order.senderFid, chainId }),
         fid: order.senderFid,
       };
       usersToSet.push(newSender);
@@ -530,8 +535,8 @@ const consolidateOrders = async ({
       lastUpdated: timestamp,
       // Only set these if it's a NEW beam
       ...(!previousBeam && {
-        from_id: _key.user({ fid: order.senderFid }),
-        to_id: _key.user({ fid: order.receiverFid }),
+        from_id: _key.user({ fid: order.senderFid, chainId }),
+        to_id: _key.user({ fid: order.receiverFid, chainId }),
         beamPool_id: order.poolId,
         recipientAccount_id: order.accountId,
         isReceiverConnected: false,
@@ -561,6 +566,7 @@ const consolidateOrders = async ({
 };
 
 BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
+  context.log.info('runs');
   const tx = createTx(event, context, false);
   const {
     action: actionParam,
@@ -633,6 +639,7 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
 
   // Set Beams
   for (const beam of beamsToSet) {
+    // console.log('SETTING BEAM:', beam);
     context.Beam.set(beam);
   }
 
