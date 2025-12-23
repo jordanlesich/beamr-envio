@@ -4,7 +4,7 @@ contracts:
   - name: BeamR
     handler: src/BeamR.ts
     events:
-    - event: Initialized(bytes32 adminRole, bytes32 rootAdminRole)
+    - event: BeamrInitialized(bytes32 adminRole, bytes32 rootAdminRole)
     - event: PoolCreated(address pool, address token, (bool,bool) config, (address,uint128)[] members, address creator, bytes32 poolAdminRole, (uint256,string) metadata)
     - event: PoolMetadataUpdated(address pool, (uint256,string) metadata)
     - event: RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
@@ -28,14 +28,14 @@ field_selection:
     - from
     - hash
 networks:
-  - id: 84532
-    start_block: 32608756
+  - id: 8453
+    start_block: 39756032
     contracts:
       - name: BeamR
         address:
-        - 0x74A7b2e23D690467E26E86220B9B5b081E5282cb
+        - 0x0e9ddfd2Ffdb0BA1aC3340D865193A7b6d4Ea147
       - name: GDA
         address:
-        - 0x53F4f44C813Dc380182d0b2b67fe5832A12B97f8  
+        - 0xfE6c87BE05feDB2059d2EC41bA0A09826C9FD7aa
       - name: SuperfluidPool  
   

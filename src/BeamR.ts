@@ -28,7 +28,7 @@ import { zeroAddress } from 'viem';
 import { decodeReceiptKey } from './utils/keys';
 import { HandlerContext } from 'generated/src/Types';
 
-BeamR.Initialized.handler(async ({ event, context }) => {
+BeamR.BeamrInitialized.handler(async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
   const adminRole: Role = {
@@ -566,6 +566,7 @@ const consolidateOrders = async ({
 };
 
 BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
+  context.log.info('runs');
   const tx = createTx(event, context, false);
   const {
     action: actionParam,
@@ -638,6 +639,7 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
 
   // Set Beams
   for (const beam of beamsToSet) {
+    // console.log('SETTING BEAM:', beam);
     context.Beam.set(beam);
   }
 
