@@ -30,7 +30,8 @@ export const _key = {
   poolMetadata: ({ poolAddress }: { poolAddress: string }) => poolAddress,
   userAccount: ({ chainId, address }: { chainId: number; address: string }) =>
     `${chainId}_${address}`,
-  user: ({ fid }: { fid: number }) => fid.toString(),
+  user: ({ fid, chainId }: { fid: number; chainId: number }) =>
+    `${fid}-${chainId}`,
   profile: ({ fid }: { fid: number }) => fid.toString(),
   beamR: ({ chainId, address }: { chainId: number; address: string }) =>
     `${chainId}_${address}`,
