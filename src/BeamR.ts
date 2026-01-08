@@ -202,6 +202,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     flowRate: 0n,
     adjustmentFlowRate: 0n,
     adjustmentMember: zeroAddress,
+    hasDistributed: false,
     poolAdminRole_id: _key.role({
       roleHash: event.params.poolAdminRole,
       chainId: event.chainId,
@@ -566,7 +567,6 @@ const consolidateOrders = async ({
 };
 
 BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
-  context.log.info('runs');
   const tx = createTx(event, context, false);
   const {
     action: actionParam,
