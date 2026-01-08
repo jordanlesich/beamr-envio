@@ -25,6 +25,8 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
   const active =
     event.params.newTotalDistributionFlowRate === BigInt(0) ? false : true;
 
+  const hasDistributed = beamPool.hasDistributed || active ? true : false;
+
   context.BeamPool.set({
     ...beamPool,
     active,
@@ -33,6 +35,7 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
     lastDistroUpdate_id: distroUpdate.id,
     flowRate: event.params.newTotalDistributionFlowRate,
     lastUpdated: event.block.timestamp,
+    hasDistributed,
   });
 
   context.DistributionUpdated.set(distroUpdate);
@@ -70,3 +73,4 @@ GDA.PoolConnectionUpdated.handler(async ({ event, context }) => {
 
   createTx(event, context);
 });
+//

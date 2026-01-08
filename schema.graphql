@@ -64,6 +64,7 @@ type BeamPool {
   active: Boolean!
   flowRate: BigInt!
   lastUpdated: Int!
+  hasDistributed: Boolean!
   poolAdminRole: Role!
   metadata: PoolMetadata!
   adjustmentFlowRate: BigInt!
