@@ -20,6 +20,7 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
     newTotalDistributionFlowRate: event.params.newTotalDistributionFlowRate,
     adjustmentFlowRate: event.params.adjustmentFlowRate,
     adjustmentFlowRecipient: event.params.adjustmentFlowRecipient,
+    timestamp: event.block.timestamp,
   };
 
   const active =
@@ -35,6 +36,7 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
     lastDistroUpdate_id: distroUpdate.id,
     flowRate: event.params.newTotalDistributionFlowRate,
     lastUpdated: event.block.timestamp,
+
     hasDistributed,
   });
 
