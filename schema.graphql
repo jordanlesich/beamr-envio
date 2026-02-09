@@ -140,6 +140,7 @@ type DistributionUpdated {
   adjustmentFlowRate: BigInt!
   adjustmentFlowRecipient: String!
   operator: String!
+  timestamp: Int!
 }
 
 # # Raw Events for BeamR Contract
