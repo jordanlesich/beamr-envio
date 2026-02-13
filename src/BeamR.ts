@@ -86,7 +86,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
 
   if (event.params.metadata[0] !== ONCHAIN_EVENT) {
     context.log.error(
-      `Invalid metadata for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Invalid metadata for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }
@@ -94,17 +94,17 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
 
   if (!parsedJSON) {
     context.log.error(
-      `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }
   const validated = poolMetadataSchema.safeParse(
-    JSON.parse(event.params.metadata[1])
+    JSON.parse(event.params.metadata[1]),
   );
 
   if (!validated.success) {
     context.log.error(
-      `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`
+      `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`,
     );
     return;
   }
@@ -115,7 +115,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
   const fidRouting = receiptKeys.map((key) => {
     if (!key.includes('tip_start')) {
       context.log.error(
-        `Invalid receipt key for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+        `Invalid receipt key for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
       );
       return;
     }
@@ -134,7 +134,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
         
          key: ${key}
 
-        `
+        `,
       );
       return;
     }
@@ -144,7 +144,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
 
   if (fidRouting.length !== event.params.members.length) {
     context.log.error(
-      `Mismatch between fidRouting length and members length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Mismatch between fidRouting length and members length on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }
@@ -201,6 +201,7 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
     active: false,
     flowRate: 0n,
     adjustmentFlowRate: 0n,
+    creatorFlowRate: 0n,
     adjustmentMember: zeroAddress,
     hasDistributed: false,
     poolAdminRole_id: _key.role({
@@ -280,7 +281,7 @@ BeamR.PoolMetadataUpdated.handler(async ({ event, context }) => {
 
   if (event.params.metadata[0] !== ONCHAIN_EVENT) {
     context.log.error(
-      `Invalid metadata for pool metadata update event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Invalid metadata for pool metadata update event on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }
@@ -289,18 +290,18 @@ BeamR.PoolMetadataUpdated.handler(async ({ event, context }) => {
 
   if (!parsedJSON) {
     context.log.error(
-      `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }
 
   const validated = poolMetadataSchema.safeParse(
-    JSON.parse(event.params.metadata[1])
+    JSON.parse(event.params.metadata[1]),
   );
 
   if (!validated.success) {
     context.log.error(
-      `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`
+      `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`,
     );
     return;
   }
@@ -328,12 +329,12 @@ BeamR.RoleGranted.handler(async ({ event, context }) => {
     _key.role({
       chainId: event.chainId,
       roleHash: event.params.role,
-    })
+    }),
   );
 
   if (!role) {
     context.log.warn(
-      `Role not found for role hash: ${event.params.role} on chainId: ${event.chainId}`
+      `Role not found for role hash: ${event.params.role} on chainId: ${event.chainId}`,
     );
     return;
   }
@@ -361,12 +362,12 @@ BeamR.RoleRevoked.handler(async ({ event, context }) => {
     _key.role({
       chainId: event.chainId,
       roleHash: event.params.role,
-    })
+    }),
   );
 
   if (!role) {
     context.log.warn(
-      `Role not found for role hash: ${event.params.role} on chainId: ${event.chainId}`
+      `Role not found for role hash: ${event.params.role} on chainId: ${event.chainId}`,
     );
     return;
   }
@@ -434,7 +435,7 @@ const consolidateOrders = async ({
       Promise.all(uniqueBeamIds.map((id) => context.Beam.get(id))),
       Promise.all(uniquePoolIds.map((id) => context.BeamPool.get(id))),
       Promise.all(
-        uniqueFids.map((fid) => context.User.get(_key.user({ fid, chainId })))
+        uniqueFids.map((fid) => context.User.get(_key.user({ fid, chainId }))),
       ),
       Promise.all(uniqueAccountIds.map((id) => context.UserAccount.get(id))),
     ]);
@@ -576,35 +577,35 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
   } = event.params;
   if (!Object.values(Action).includes(Number(actionParam))) {
     context.log.error(
-      `Invalid action type for MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Invalid action type for MemberUnitsUpdated event on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }
   const action = Number(actionParam) as Action;
   if (metadata[0] !== ONCHAIN_EVENT) {
     context.log.error(
-      `Invalid metadata for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Invalid metadata for pool creation event on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }
   const parsedJSON = safeJSONParse(metadata[1]);
   if (!parsedJSON) {
     context.log.error(
-      `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Failed to parse pool metadata JSON on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }
   const validated = unitAdjustmentSchema.safeParse(JSON.parse(metadata[1]));
   if (!validated.success) {
     context.log.error(
-      `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`
+      `Invalid pool metadata schema on chainId: ${event.chainId} at tx ${event.transaction.hash}: ${validated.error}`,
     );
     return;
   }
   const { fidRouting } = validated.data;
   if (fidRouting.length !== members.length) {
     context.log.error(
-      `Mismatch between fidRouting length and members length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Mismatch between fidRouting length and members length on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }
@@ -613,7 +614,7 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     fidRouting.length !== poolAddresses.length
   ) {
     context.log.error(
-      `Mismatch between members length and poolAddresses length on chainId: ${event.chainId} at tx ${event.transaction.hash}`
+      `Mismatch between members length and poolAddresses length on chainId: ${event.chainId} at tx ${event.transaction.hash}`,
     );
     return;
   }

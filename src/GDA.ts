@@ -10,6 +10,16 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
     return;
   }
 
+  const creatorAccount = await context.UserAccount.get(
+    beamPool.creatorAccount_id
+  );
+  const creatorAddress = creatorAccount?.address?.toLowerCase();
+  const distributor = event.params.distributor.toLowerCase();
+  const creatorFlowRate =
+    creatorAddress && creatorAddress === distributor
+      ? event.params.newDistributorToPoolFlowRate
+      : beamPool.creatorFlowRate;
+
   const distroUpdate: DistributionUpdated = {
     id: _key.event(event),
     beamPool_id: event.params.pool,
@@ -35,6 +45,7 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
     adjustmentMember: event.params.adjustmentFlowRecipient,
     lastDistroUpdate_id: distroUpdate.id,
     flowRate: event.params.newTotalDistributionFlowRate,
+    creatorFlowRate,
     lastUpdated: event.block.timestamp,
 
     hasDistributed,
