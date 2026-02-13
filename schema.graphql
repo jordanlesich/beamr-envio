@@ -63,6 +63,7 @@ type BeamPool {
   totalUnits: BigInt!
   active: Boolean!
   flowRate: BigInt!
+  creatorFlowRate: BigInt!
   lastUpdated: Int!
   hasDistributed: Boolean!
   poolAdminRole: Role!
