@@ -3,7 +3,7 @@ import { _key, createTx } from './utils/sync';
 
 GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
   const beamPool = await context.BeamPool.get(
-    _key.beamPool({ poolAddress: event.params.pool })
+    _key.beamPool({ poolAddress: event.params.pool }),
   );
 
   if (!beamPool) {
@@ -11,7 +11,7 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
   }
 
   const creatorAccount = await context.UserAccount.get(
-    beamPool.creatorAccount_id
+    beamPool.creatorAccount_id,
   );
   const creatorAddress = creatorAccount?.address?.toLowerCase();
   const distributor = event.params.distributor.toLowerCase();
@@ -57,7 +57,7 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
 
 GDA.PoolConnectionUpdated.handler(async ({ event, context }) => {
   const beamPool = await context.BeamPool.get(
-    _key.beamPool({ poolAddress: event.params.pool })
+    _key.beamPool({ poolAddress: event.params.pool }),
   );
 
   if (!beamPool) {
@@ -68,13 +68,10 @@ GDA.PoolConnectionUpdated.handler(async ({ event, context }) => {
     _key.beam({
       poolAddress: event.params.pool,
       to: event.params.account,
-    })
+    }),
   );
 
   if (!beam) {
-    context.log.error(
-      `Beam not found for beamPool: ${event.params.pool} and account: ${event.params.account} on chainId: ${event.chainId} at tx ${event.transaction.hash}`
-    );
     return;
   }
   //

@@ -12,6 +12,7 @@ import {
   Beam,
   BeamPool,
   BeamrGlobal,
+  MemberUnitsUpdated,
   PoolMetadata,
   Role,
   User,
@@ -398,6 +399,7 @@ const consolidateOrders = async ({
   action,
   timestamp,
   srcAddress,
+  txKey,
 }: {
   chainId: number;
   members: [string, bigint][];
@@ -407,6 +409,7 @@ const consolidateOrders = async ({
   action: Action;
   timestamp: number;
   srcAddress: string;
+  txKey: string;
 }) => {
   // 1. Map Inputs to Deterministic IDs & Structures
   const rawOrders = members.map((member, i) => ({
@@ -466,9 +469,10 @@ const consolidateOrders = async ({
   const poolsToSet: Map<string, BeamPool> = new Map();
   const usersToSet: User[] = [];
   const accountsToSet: UserAccount[] = [];
+  const memberUnitsUpdatedToSet: MemberUnitsUpdated[] = [];
 
   // 4. Calculate Logic
-  for (const order of rawOrders) {
+  for (const [index, order] of rawOrders.entries()) {
     // --- Entity Checks ---
     if (!userMap.has(order.receiverFid)) {
       const newUser = {
@@ -549,6 +553,17 @@ const consolidateOrders = async ({
     beamsToSet.push(updatedBeam);
     beamMap.set(order.beamId, updatedBeam); // Update map for next iteration
 
+    // --- Record MemberUnitsUpdated ---
+    memberUnitsUpdatedToSet.push({
+      id: `${txKey}_${index}`,
+      beamPool_id: order.poolId,
+      beam_id: order.beamId,
+      member: order.address,
+      oldUnits,
+      newUnits,
+      timestamp,
+    });
+
     // --- Update Pool Object ---
     const updatedPool = {
       ...pool,
@@ -564,6 +579,7 @@ const consolidateOrders = async ({
     accountsToSet,
     beamsToSet,
     poolsToSet: Array.from(poolsToSet.values()),
+    memberUnitsUpdatedToSet,
   };
 };
 
@@ -618,7 +634,7 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
     );
     return;
   }
-  const { usersToSet, accountsToSet, beamsToSet, poolsToSet } =
+  const { usersToSet, accountsToSet, beamsToSet, poolsToSet, memberUnitsUpdatedToSet } =
     await consolidateOrders({
       members,
       fidRoutes: fidRouting,
@@ -627,7 +643,8 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
       chainId: event.chainId,
       action,
       timestamp: event.block.timestamp,
-      srcAddress: event.srcAddress, // Passed here
+      srcAddress: event.srcAddress,
+      txKey: _key.event(event),
     });
 
   for (const user of usersToSet) {
@@ -647,6 +664,11 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
   // Set Pools (Totals)
   for (const pool of poolsToSet) {
     context.BeamPool.set(pool);
+  }
+
+  // Set MemberUnitsUpdated records
+  for (const record of memberUnitsUpdatedToSet) {
+    context.MemberUnitsUpdated.set(record);
   }
 
   // Set Transaction

@@ -127,6 +127,7 @@ type MemberUnitsUpdated {
   member: String!
   oldUnits: BigInt!
   newUnits: BigInt!
+  timestamp: Int!
 }
 
 # # Raw Events for GDA Contract (filtered by BeamR specific pools only)
