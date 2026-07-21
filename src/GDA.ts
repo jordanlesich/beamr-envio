@@ -1,7 +1,9 @@
-import { DistributionUpdated, GDA } from 'generated';
+import { indexer, DistributionUpdated, GDA } from "envio";
 import { _key, createTx } from './utils/sync';
 
-GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "GDA", event: "FlowDistributionUpdated" },
+  async ({ event, context }) => {
   const beamPool = await context.BeamPool.get(
     _key.beamPool({ poolAddress: event.params.pool }),
   );
@@ -53,9 +55,12 @@ GDA.FlowDistributionUpdated.handler(async ({ event, context }) => {
 
   context.DistributionUpdated.set(distroUpdate);
   createTx(event, context);
-});
+}
+);
 
-GDA.PoolConnectionUpdated.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "GDA", event: "PoolConnectionUpdated" },
+  async ({ event, context }) => {
   const beamPool = await context.BeamPool.get(
     _key.beamPool({ poolAddress: event.params.pool }),
   );
@@ -82,5 +87,6 @@ GDA.PoolConnectionUpdated.handler(async ({ event, context }) => {
   });
 
   createTx(event, context);
-});
+}
+);
 //

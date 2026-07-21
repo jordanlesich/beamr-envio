@@ -1,4 +1,4 @@
-import { eventLog, handlerContext, TX } from 'generated';
+import { eventLog, handlerContext, TX } from "envio";
 
 export const createTx = (
   event: eventLog<unknown>,

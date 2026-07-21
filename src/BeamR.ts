@@ -1,12 +1,7 @@
 /*
  * Please refer to https://docs.envio.dev for a thorough guide on all Envio indexer features
  */
-import {
-  BeamR,
-  BeamR_RoleGranted,
-  BeamR_Initialized,
-  BeamR_RoleRevoked,
-} from 'generated';
+import { type EvmOnEventContext, indexer, BeamR, BeamR_RoleGranted, BeamR_Initialized, BeamR_RoleRevoked } from "envio";
 import { _key, createTx } from './utils/sync';
 import {
   Beam,
@@ -27,9 +22,11 @@ import {
 import { safeJSONParse } from './utils/common';
 import { zeroAddress } from 'viem';
 import { decodeReceiptKey } from './utils/keys';
-import { HandlerContext } from 'generated/src/Types';
+import { EvmOnEventContext } from 'generated/src/Types';
 
-BeamR.BeamrInitialized.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "BeamR", event: "BeamrInitialized" },
+  async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
   const adminRole: Role = {
@@ -74,13 +71,19 @@ BeamR.BeamrInitialized.handler(async ({ event, context }) => {
   context.Role.set(adminRole);
   context.Role.set(rootAdminRole);
   context.TX.set(tx);
-});
+}
+);
 
-BeamR.PoolCreated.contractRegister(async ({ event, context }) => {
-  context.addSuperfluidPool(event.params.pool);
-});
+indexer.contractRegister(
+  { contract: "BeamR", event: "PoolCreated" },
+  async ({ event, context }) => {
+  context.chain.SuperfluidPool.add(event.params.pool);
+}
+);
 
-BeamR.PoolCreated.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "BeamR", event: "PoolCreated" },
+  async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
   const chainId = event.chainId;
@@ -275,9 +278,12 @@ BeamR.PoolCreated.handler(async ({ event, context }) => {
       lastUpdated: event.block.timestamp,
     });
   });
-});
+}
+);
 
-BeamR.PoolMetadataUpdated.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "BeamR", event: "PoolMetadataUpdated" },
+  async ({ event, context }) => {
   const tx = createTx(event, context, false);
 
   if (event.params.metadata[0] !== ONCHAIN_EVENT) {
@@ -322,9 +328,12 @@ BeamR.PoolMetadataUpdated.handler(async ({ event, context }) => {
   context.PoolMetadata.set(metadata);
 
   context.TX.set(tx);
-});
+}
+);
 
-BeamR.RoleGranted.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "BeamR", event: "RoleGranted" },
+  async ({ event, context }) => {
   const tx = createTx(event, context, false);
   const role = await context.Role.get(
     _key.role({
@@ -355,9 +364,12 @@ BeamR.RoleGranted.handler(async ({ event, context }) => {
 
   context.BeamR_RoleGranted.set(entity);
   context.TX.set(tx);
-});
+}
+);
 
-BeamR.RoleRevoked.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "BeamR", event: "RoleRevoked" },
+  async ({ event, context }) => {
   const tx = createTx(event, context, false);
   const role = await context.Role.get(
     _key.role({
@@ -388,7 +400,8 @@ BeamR.RoleRevoked.handler(async ({ event, context }) => {
 
   context.BeamR_RoleRevoked.set(entity);
   context.TX.set(tx);
-});
+}
+);
 
 const consolidateOrders = async ({
   members,
@@ -405,7 +418,7 @@ const consolidateOrders = async ({
   members: [string, bigint][];
   fidRoutes: [number, number][];
   poolAddresses: string[];
-  context: HandlerContext;
+  context: EvmOnEventContext;
   action: Action;
   timestamp: number;
   srcAddress: string;
@@ -583,7 +596,9 @@ const consolidateOrders = async ({
   };
 };
 
-BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
+indexer.onEvent(
+  { contract: "BeamR", event: "MemberUnitsUpdated" },
+  async ({ event, context }) => {
   const tx = createTx(event, context, false);
   const {
     action: actionParam,
@@ -673,4 +688,5 @@ BeamR.MemberUnitsUpdated.handler(async ({ event, context }) => {
 
   // Set Transaction
   context.TX.set(tx);
-});
+}
+);

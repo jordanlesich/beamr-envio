@@ -1,8 +1,5 @@
 import assert from "assert";
-import { 
-  TestHelpers,
-  BeamR_Initialized
-} from "generated";
+import { TestHelpers, BeamR_Initialized } from "envio";
 const { MockDb, BeamR } = TestHelpers;
 
 describe("BeamR contract Initialized event tests", () => {
