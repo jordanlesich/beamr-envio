@@ -21,13 +21,12 @@ contracts:
     events:
     - event: MemberUnitsUpdated(address indexed token, address indexed member, uint128 oldUnits, uint128 newUnits)
     - event: DistributionClaimed(address indexed token, address indexed member, uint128 amount, uint128 units, uint256 timestamp)
-unordered_multichain_mode: true
 # preload_handlers: true
 field_selection: 
   transaction_fields:
     - from
     - hash
-networks:
+chains:
   - id: 8453
     start_block: 39756032
     contracts:

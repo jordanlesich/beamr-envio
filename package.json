@@ -22,14 +22,12 @@
   },
   "dependencies": {
     "@neynar/nodejs-sdk": "^3.34.0",
-    "envio": "2.32.3",
+    "envio": "3.2.1",
     "viem": "^2.33.3",
     "zod": "^4.0.17"
   },
-  "optionalDependencies": {
-    "generated": "./generated"
-  },
   "engines": {
-    "node": ">=18.0.0"
-  }
+    "node": ">=22.0.0"
+  },
+  "type": "module"
 }

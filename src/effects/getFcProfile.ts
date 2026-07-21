@@ -54,7 +54,7 @@ async function writeCache(cache: Map<number, RawProfile>) {
 }
 
 export const getFcProfile =
-  // experimental_createEffect(
+  // createEffect(
   //   {
   //     name: 'getFcProfile',
   //     input: S.array(S.number),

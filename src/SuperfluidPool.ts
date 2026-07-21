@@ -1,4 +1,7 @@
-import { SuperfluidPool } from 'generated';
+import { indexer, SuperfluidPool } from "envio";
 import { _key } from './utils/sync';
 
-SuperfluidPool.MemberUnitsUpdated.handler(async ({ event, context }) => {});
+indexer.onEvent(
+  { contract: "SuperfluidPool", event: "MemberUnitsUpdated" },
+  async ({ event, context }) => {}
+);
